@@ -576,6 +576,15 @@ void show_sysinfo(const char *options_var) {
 #if defined(__mips_soft_float)
         cf_print("__mips_soft_float", "%lld", __mips_soft_float + 0);
 #endif
+#if defined(__wasm__)
+        cf_print("__wasm__", "%lld", __wasm__ + 0);
+#endif
+#if defined(__wasm32__)
+        cf_print("__wasm32__", "%lld", __wasm32__ + 0);
+#endif
+#if defined(__wasm64__)
+        cf_print("__wasm64__", "%lld", __wasm64__ + 0);
+#endif
 
         // OS and libc
 #if defined(WINVER)
@@ -603,6 +612,9 @@ void show_sysinfo(const char *options_var) {
 #endif
 #if defined(__GLIBC_MINOR__)
         cf_print("__GLIBC_MINOR__", "%lld", __GLIBC_MINOR__ + 0);
+#endif
+#if defined(__wasi__)
+        cf_print("__wasi__", "%lld", __wasi__ + 0);
 #endif
 
         // misc compilation options

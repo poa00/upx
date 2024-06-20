@@ -970,10 +970,15 @@ TEST_CASE("get_ratio") {
 // compat
 **************************************************************************/
 
-#if defined(__wasi__) // TODO later - wait for wasm/wasi exception handling proposal
+#if defined(__wasi__) && 1 // TODO later - wait for wasm/wasi exception handling proposal
 extern "C" {
-void __cxa_allocate_exception() throw() { std::terminate(); }
-void __cxa_throw() { std::terminate(); }
+void *__cxa_allocate_exception(std::size_t thrown_size) throw() { return ::malloc(thrown_size); }
+void __cxa_throw(void *thrown_exception, /*std::type_info*/ void *tinfo, void (*dest)(void *)) {
+    UNUSED(thrown_exception);
+    UNUSED(tinfo);
+    UNUSED(dest);
+    std::terminate();
+}
 } // extern "C"
 #endif
 

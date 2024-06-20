@@ -110,6 +110,10 @@ jobs:
         with: { submodules: true }
       - name: Check out test suite
         run: git clone --depth=1 https://github.com/upx/upx-testsuite ../deps/upx-testsuite
+      - run: clang   -E -x c   -dM /dev/null # list predefined macros for C
+      - run: clang++ -E -x c++ -dM /dev/null # list predefined macros for C++
+      - run: gcc     -E -x c   -dM /dev/null # list predefined macros for C
+      - run: g++     -E -x c++ -dM /dev/null # list predefined macros for C++
       - run: make build/extra/gcc/all
       - run: make build/extra/clang/all
       - run: make build/extra/gcc-m32/all
@@ -231,6 +235,12 @@ jobs:
       - name: Check out test suite
         if: ${{ matrix.testsuite }}
         run: git clone --depth=1 https://github.com/upx/upx-testsuite ../deps/upx-testsuite
+      - run: clang   -E -x c   -dM /dev/null # list predefined macros for C
+      - run: clang++ -E -x c++ -dM /dev/null # list predefined macros for C++
+      - run: ${{ matrix.gcc }} -E -x c   -dM /dev/null # list predefined macros for C
+        if: ${{ matrix.gcc }}
+      - run: ${{ matrix.gxx }} -E -x c++ -dM /dev/null # list predefined macros for C++
+        if: ${{ matrix.gcc }}
       - run: make build/extra/clang/all
       - name: Build extra/gcc/all
         if: ${{ matrix.gcc }}
@@ -536,6 +546,8 @@ jobs:
           if test "X$ZIG_PIC" = "X-fPIE"; then true;
             echo "ZIG_FLAGS=$ZIG_FLAGS --start-no-unused-arguments -pie --end-no-unused-arguments" >> $GITHUB_ENV
           fi
+      - run: zig-cc  -E -x c   -dM /dev/null # list predefined macros for C
+      - run: zig-cxx -E -x c++ -dM /dev/null # list predefined macros for C++
       - name: ${{ format('Build Release with zig-cc -target {0} {1}', env.ZIG_TARGET, env.ZIG_PIC) }}
         run: |
           make UPX_XTARGET=zig/${ZIG_TARGET}${ZIG_PIC} xtarget/release \
