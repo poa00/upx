@@ -110,6 +110,8 @@ jobs:
         with: { submodules: true }
       - name: Check out test suite
         run: git clone --depth=1 https://github.com/upx/upx-testsuite ../deps/upx-testsuite
+      - run: set -x; clang --version; clang++ --version
+      - run: set -x; gcc --version; g++ --version
       - run: clang   -E -x c   -dM /dev/null # list predefined macros for C
       - run: clang++ -E -x c++ -dM /dev/null # list predefined macros for C++
       - run: gcc     -E -x c   -dM /dev/null # list predefined macros for C
@@ -235,8 +237,11 @@ jobs:
       - name: Check out test suite
         if: ${{ matrix.testsuite }}
         run: git clone --depth=1 https://github.com/upx/upx-testsuite ../deps/upx-testsuite
+      - run: set -x; clang --version; clang++ --version
       - run: clang   -E -x c   -dM /dev/null # list predefined macros for C
       - run: clang++ -E -x c++ -dM /dev/null # list predefined macros for C++
+      - run: set -x; ${{ matrix.gcc }} --version; ${{ matrix.gxx }} --version
+        if: ${{ matrix.gcc }}
       - run: ${{ matrix.gcc }} -E -x c   -dM /dev/null # list predefined macros for C
         if: ${{ matrix.gcc }}
       - run: ${{ matrix.gxx }} -E -x c++ -dM /dev/null # list predefined macros for C++
@@ -546,6 +551,7 @@ jobs:
           if test "X$ZIG_PIC" = "X-fPIE"; then true;
             echo "ZIG_FLAGS=$ZIG_FLAGS --start-no-unused-arguments -pie --end-no-unused-arguments" >> $GITHUB_ENV
           fi
+      - run: set -x; zig version; zig-cc --version; zig-cxx --version
       - run: zig-cc  -E -x c   -dM /dev/null # list predefined macros for C
       - run: zig-cxx -E -x c++ -dM /dev/null # list predefined macros for C++
       - name: ${{ format('Build Release with zig-cc -target {0} {1}', env.ZIG_TARGET, env.ZIG_PIC) }}

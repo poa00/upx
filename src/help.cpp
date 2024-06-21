@@ -618,6 +618,16 @@ void show_sysinfo(const char *options_var) {
 #endif
 
         // misc compilation options
+#if defined(__PIC__)
+        cf_print("__PIC__", "%lld", __PIC__ + 0, 3);
+#elif defined(__pic__)
+        cf_print("__pic__", "%lld", __pic__ + 0, 3);
+#endif
+#if defined(__PIE__)
+        cf_print("__PIE__", "%lld", __PIE__ + 0, 3);
+#elif defined(__pie__)
+        cf_print("__pie__", "%lld", __pie__ + 0, 3);
+#endif
 #if defined(UPX_CONFIG_DISABLE_WSTRICT)
         cf_print("UPX_CONFIG_DISABLE_WSTRICT", "%lld", UPX_CONFIG_DISABLE_WSTRICT + 0, 3);
 #endif

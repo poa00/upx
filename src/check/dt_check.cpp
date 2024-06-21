@@ -491,7 +491,7 @@ struct CheckSignedness {
 };
 
 template <class A, class B>
-struct TestNoAliasingStruct {
+struct TestNoAliasingStruct { // check working -fno-strict-aliasing
     static noinline bool test(A *a, B *b) noexcept {
         *a = 0;
         *b = 0;
@@ -504,10 +504,10 @@ static forceinline bool testNoAliasing(A *a, B *b) noexcept {
     return TestNoAliasingStruct<A, B>::test(a, b);
 }
 template <class T>
-struct TestIntegerWrap {
+struct TestIntegerWrap { // check working -fno-strict-overflow
     static inline bool inc_gt(const T x) noexcept { return x + 1 > x; }
     static inline bool dec_lt(const T x) noexcept { return x - 1 < x; }
-    static inline bool neg_eq(const T x) noexcept { return T(0) - x == x; }
+    static inline bool neg_eq(const T x) noexcept { return T(T(0) - x) == x; }
 };
 
 //

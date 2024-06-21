@@ -27,6 +27,7 @@
 #pragma once
 
 #include "system_defs.h"
+#include "system_features.h"
 
 #if !(__cplusplus + 0 >= 201703L)
 #error "FATAL ERROR: C++17 is required"
@@ -40,7 +41,7 @@
 #error "missing __CYGWIN__"
 #endif
 #if defined(__clang__) || defined(__GNUC__)
-// these are pre-defined since gcc-4.6 (2011) and clang-3.2 (2012)
+// byte order - these are pre-defined since gcc-4.6 (2011) and clang-3.2 (2012)
 #if !defined(__ORDER_BIG_ENDIAN__) || (__ORDER_BIG_ENDIAN__ + 0 == 0)
 #error "missing __ORDER_BIG_ENDIAN__"
 #endif
@@ -59,6 +60,25 @@
 #if (__BYTE_ORDER__ != __ORDER_BIG_ENDIAN__) && (__BYTE_ORDER__ != __ORDER_LITTLE_ENDIAN__)
 #error "unexpected __BYTE_ORDER__"
 #endif
+#endif
+// pic and pie
+#if defined(__PIC__) && defined(__pic__)
+static_assert((__PIC__) == (__pic__));
+#endif
+#if defined(__PIC__)
+static_assert(__PIC__ == 1 || __PIC__ == 2);
+#endif
+#if defined(__pic__)
+static_assert(__pic__ == 1 || __pic__ == 2);
+#endif
+#if defined(__PIE__) && defined(__pie__)
+static_assert((__PIE__) == (__pie__));
+#endif
+#if defined(__PIE__)
+static_assert(__PIE__ == 1 || __PIE__ == 2);
+#endif
+#if defined(__pie__)
+static_assert(__pie__ == 1 || __pie__ == 2);
 #endif
 
 // sanity checks
