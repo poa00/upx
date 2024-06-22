@@ -81,9 +81,12 @@ f_expand: .globl f_expand   // start of code for actual de-compressor
         push %rbp; mov %rsp,%rbp; push %rbx  // MATCH_50  C saved registers
 
 // Calling sequence registers
-#define fx_src %rdi
+#define fx_src %rdi  /* includes b_info for .b_method, .b_ftid, .b_cto8 */
 #define fx_dst %rsi
 #define fx_dstlen %rdx
+#define meth  %r8d
+#define methb %r8b
+
 
 sz_unc= 0
 sz_cpr= 4
@@ -119,7 +122,6 @@ unfilter:
 #define len  %ecx  /* XXX: 2GB */
 #define lenq %rcx
 #define bits %ebx
-#define methb %dl  /* input only */
 #define src %rsi
 #define dst %rdi
 #define displ %ebp
@@ -127,7 +129,7 @@ unfilter:
 
 decompress:  // (fx_src= &b_info, fx_dst= dst, fx_dstlen= &dstlen)
     push fx_dstlen  // MATCH_51
-    movzbl b_method(fx_src),%edx  // methb; for choosing decompression method
+    movzbl b_method(fx_src),meth  // daisy chain by decompression method
     push fx_src; push fx_dst
     pop  dst;    pop  src
     mov sz_cpr(src),%eax; add $sz_binfo,src  // done with b_info; ready for movsb, lodsb
@@ -137,7 +139,7 @@ decompress:  // (fx_src= &b_info, fx_dst= dst, fx_dstlen= &dstlen)
         xor bits,bits  // empty; force refill
         xor len,len  // create loop invariant
         orq $(~0),dispq  // -1: initial displacement
-        jmp setup
+        jmp go_meth
 
 refill:
         movl (%rsi),bits; sub $-4,%rsi  // next 32 bits; set Carry
@@ -164,7 +166,7 @@ copy1:
 copy0:
         rep; ret
 
-setup:
+go_meth:
         cld
 
 #define M_NRV2B_LE32    2
@@ -172,6 +174,8 @@ setup:
 #define M_NRV2E_LE32    8
 #define M_CL1B_LE32     11
 #define M_LZMA          14
+
+// Daisy chain of decoding methods that were used
 
   section NRV2E
 #include "arch/amd64/nrv2e_d.S"
@@ -189,12 +193,21 @@ setup:
 #undef displ
 #undef dispq
 
+section LZMA_ELF00  // prefix for parameter juggling
+        push dst; push src  // MATCH_60
+#define arg2d esi
+        mov sz_cpr - sz_binfo(src),%arg2d
 #undef src
 #undef dst
-#undef methb
+        mov fx_dstlen,%arg4
+        pop %arg1; pop %arg3  // MATCH_60
 
-/* lzma has its own 'section's */
 #include "arch/amd64/lzma_d.S"
+
+// Fall through: daisy chain had no matching method
+        mov meth,%ecx  // b_method as __NR__
+        or $~0,%eax  // "errno"
+        int3; hlt  // no method
 
   section EXP_TAIL
 eof:

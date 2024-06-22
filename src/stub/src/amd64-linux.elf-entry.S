@@ -246,7 +246,7 @@ eof_n2b:
         mov %r12,%arg5  // mfd
         push $MAP_SHARED; pop %sys4
         push %arg3; pop %arg2  // LENU
-        push $PROT_READ|PROT_EXEC; pop %arg3  // FIXME: add PROT_WRITE for DEBUG only
+        push $PROT_WRITE|PROT_READ|PROT_EXEC; pop %arg3  // FIXME: add PROT_WRITE for DEBUG only
         subl %edi,%edi  // (%arg1)dst = 0;  // kernel chooses addr
         push $__NR_mmap; pop %rax; call sys_check
         push %rax  // MATCH_12

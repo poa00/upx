@@ -133,7 +133,6 @@ env_pse:
         mov %r15,%rcx
         sub %rsp,%rcx  # byte count
 
-        mov %rdi,%r14  # end of new auxv
         sub $NBPW,%rdi        # &last qword of new auxv
         lea -NBPW(%r15),%rsi  # &last qword of old auxv
 
@@ -142,12 +141,13 @@ env_pse:
         xor %esi,%eax
         and $NBPW,%eax
         sub %rax,%rdi
+        mov %rdi,%r14  # &last qword of new auxv
 
         shr   $3,%rcx; rep movsq
         lea NBPW(%rdi),%rsp
      cld
 
-        lea (%r14,%r12),%arg4  # &new Elf64_auxv  %r12 dead
+        lea NBPW(%r14,%r12),%arg4  # &new Elf64_auxv  %r12 dead
 no_env_pse:
         pop %arg1  # ADRX with lo bits
         pop %arg2  # LENX
@@ -202,7 +202,7 @@ no_pse_map:
         pop %arg1  # ADRU: unfolded upx_main etc.
         pop %arg2  # LENU
         push $__NR_munmap; pop %rax
-        jmp *-NBPW(%r14)  # goto: syscall; pop %rdx; ret
+        jmp *(%r14)  # goto: syscall; pop %rdx; ret
 
 get_page_mask: .globl get_page_mask
         mov PAGE_MASK(%rip),%rax

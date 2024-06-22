@@ -36,14 +36,16 @@ section LZMA_ELF00
 #define lsrc %arg2  /* %rsi */
 #define dst  %arg3  /* %rdx */
 #define ldst %arg4  /* %rcx */ /* Out: actually a reference: &len_dst */
+#ifndef meth  //{
 #define meth %arg5l /* %r8  */
 #define methb %arg5b
+#endif  //}
 
-// ELFMAINX has already done this for us:
+// ELFMAINX (or amd64-expand.S/decompress:) has already done this for us:
 //      pushq %rbp; push %rbx  // C callable
-//      pushq ldst
-//      pushq dst
-//      addq src,lsrc; push lsrc  // &input_eof
+//      pushq ldst  // MATCH_51
+//      addq src,lsrc; push lsrc  // MATCH_52 &input_eof
+//      pushq dst  // MATCH_53
 //      subq src,lsrc //restore the value of lsrc
 
 #define M_LZMA          14
@@ -60,7 +62,7 @@ section LZMA_ELF00
         movl (ldst),%arg6l  // &outSize  XXX: 4GB
         movq dst,%arg5  // outp
         movq lsrc,%arg3  // inSize
-        leaq 2(src),%arg2; pushq %arg2  // in; save @-8(%rbp) for size calc at eof
+        leaq 2(src),%arg2; pushq %arg2  // MATCH_70 in; save @-8(%rbp) for size calc at eof
 
         movb (src),%al; decl %arg3l  // first byte, replaces LzmaDecodeProperties()
         movb %al,%cl  // cl= ((lit_context_bits + lit_pos_bits)<<3) | pos_bits
@@ -91,7 +93,11 @@ section LZMA_ELF00
         andb $0xf,%al; movb %al, (%arg1)  // store lit_context_bits
         leaq -szSizeT(%arg1),%arg4  // &inSizeProcessed
 
-        pushq %rax  // return address slot (dummy CALL)
+#ifdef WINDOWS_BACK
+        push %rax  // return address slot (dummy CALL) [value ignored]
+#else
+        push $0x5A  // return address slot (dummy CALL) [value easy to debug]
+#endif // WINDOWS_BACK
 
 #ifndef NO_RED_ZONE
 
@@ -109,18 +115,27 @@ section LZMA_DEC20
 #endif
 
 section LZMA_DEC30
-        movq -1*8(%rbp),%rsi  // src [after header]
-        movq  2*8(%rbp),%rdi  // dst
+        movq -1*8(%rbp),%rsi  // MATCH_70  src [after header]
+#ifdef WINDOWS_BACK
+        movq  2*8(%rbp),%rdi  // dst  (actually an un-checked bug)
+#else 
+        movq  1*8(%rbp),%rdi  // dst
+#endif
         movl szSizeT(%rbx),%ecx; addq %rcx,%rsi  //  inSizeProcessed
         movl        (%rbx),%edx; addq %rdx,%rdi  // outSizeProcessed
         leave  // movl %ebp,%rsp; popq %rbp
 #ifndef NO_METHOD_CHECK
+#ifdef WINDOWS_BACK
         jmp eof_lzma
+#else
+        jmp eof
+#endif // WINDOWS_BACK
+
 not_lzma:
         push %rdi; pop %rsi  # src = arg1
-        # fall into 'eof'
+        # fall into next daisy-chain method
 eof_lzma:
-#endif
+#endif // NO_METHOD_CHECK
 
 // vi:ts=8:et
 
