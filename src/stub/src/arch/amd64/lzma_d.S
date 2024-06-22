@@ -118,7 +118,7 @@ section LZMA_DEC30
         movq -1*8(%rbp),%rsi  // MATCH_70  src [after header]
 #ifdef WINDOWS_BACK
         movq  2*8(%rbp),%rdi  // dst  (actually an un-checked bug)
-#else 
+#else
         movq  1*8(%rbp),%rdi  // dst
 #endif
         movl szSizeT(%rbx),%ecx; addq %rcx,%rsi  //  inSizeProcessed
