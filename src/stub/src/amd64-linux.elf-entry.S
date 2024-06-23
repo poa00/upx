@@ -128,7 +128,9 @@ AT_PAGESZ= 6  // /usr/include/elf.h
         sub %rcx,%rdi  // elfaddr
         lea o_binfo(%rip),%rsi
         lodsl; xchg %eax,%ebx; mov %ebx,%r13d  // O_BINFO; advance to &b_info
-        lodsl; xchg %eax,%edx; add $0x10,%edx; push %rdx  // F_LENU = sz_unc + x86_overrun + insurance
+INSURANCE= 0x10
+        lodsl; xchg %eax,%edx
+        add $INSURANCE,%edx; push %rdx  // F_LENU = sz_unc + x86_overrun + insurance
         push $-1  // space for F_ADRU
         push %rdi  // F_ELFA
         sub %rbx,%rcx; push %rcx  // F_LENX = sz_pack2 - O_BINFO
@@ -235,6 +237,7 @@ eof_n2b:
 // Write de-compressed 'fold' to file
         mov F_PMASK(old_sp),%rax; mov %rax,(%rsp)  // propagate PAGE_MASK
         mov F_LENU(old_sp),%arg3  // LENU
+        sub $INSURANCE,%arg3  // memcheck limit
         push %rsp; pop %arg2  // buffer
         mov %r12,%arg1  // mfd
         push $__NR_write; pop %rax; call sys_check
