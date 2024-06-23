@@ -552,7 +552,10 @@ do_xmap(
             mfd = memfd_create(addr_string("upx"), 0);  // the directory entry
             ftruncate(mfd, mlen);  // Allocate the pages in the file.
             if (frag) {
-                write(mfd, addr, frag);  // Save lo fragment of contents on first page.
+                // Note: *addr does not exist yet, and figuring out a substitute
+                // Note: location is a cumbersome heristic.  So do not attempt.
+                //
+                // write(mfd, addr, frag);  // Save lo fragment of contents on first page.
             }
             if (addr != mmap(addr, mlen, PROT_READ|PROT_WRITE, MAP_FIXED|MAP_SHARED, mfd, 0)) {
                 err_exit(7);

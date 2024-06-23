@@ -8,13 +8,13 @@ Linker script and memory map
 
                 0x000000000010004c                . = ((0x100000 + SIZEOF_HEADERS) + 0xc)
 
-.text           0x0000000000000000      0x909
+.text           0x0000000000000000      0x8f1
  .text          0x0000000000000000      0x160 tmp/amd64-linux.elf-fold.o
                 0x0000000000000158                get_page_mask
  .text          0x0000000000000160        0x0 tmp/amd64-expand.o
- .text          0x0000000000000160      0x7a9 tmp/amd64-linux.elf-main2.o
+ .text          0x0000000000000160      0x791 tmp/amd64-linux.elf-main2.o
                 0x00000000000002b5                underlay
-                0x00000000000007d4                upx_main
+                0x00000000000007bc                upx_main
 
 EXP_HEAD        0x0000000000000000       0xe1
  EXP_HEAD       0x0000000000000000       0xe1 tmp/amd64-expand.o
