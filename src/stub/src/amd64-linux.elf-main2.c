@@ -650,10 +650,10 @@ upx_main(  // returns entry address
 /*arg4*/    ElfW(auxv_t) *const av
 #if defined(__x86_64)  //{
 /*arg5*/    , ElfW(Addr) elfaddr  // In: &ElfW(Ehdr) for stub
-#elif defined(__powerpc64__)  //}{
-/*arg5*/    , ElfW(Addr) *p_reloc  // In: &ElfW(Ehdr) for stub; Out: 'slide' for PT_INTERP
 #elif defined(__aarch64__) //}{
 /*arg5*/    , ElfW(Addr) elfaddr
+#elif defined(__powerpc64__)  //}{
+/*arg5*/    , ElfW(Addr) *p_reloc  // In: &ElfW(Ehdr) for stub; Out: 'slide' for PT_INTERP
 #endif  //}
 )
 {

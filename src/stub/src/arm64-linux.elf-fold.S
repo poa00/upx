@@ -95,7 +95,7 @@ fold_begin:  // known offset (NBPW + 3*4)
 ////    brk #0  // DEBUG
         b L10
 
-// In:  sp/ PMASK,fd,ADRU,LENU, x0,x1, argc,argv,...
+// In:  sp/ PMASK,LENC,ADRU,LENU, x0,x1, argc,argv,...
 //lr   .req x30
 wLENC  .req w29  // compressed input
   xLENC  .req x29
@@ -140,7 +140,7 @@ mprotect: .globl mprotect
         do_sys __NR_mprotect; ret
 
 L10:
-        add sp,sp,#2*NBPW  // toss xPMASK,xfd
+        add sp,sp,#2*NBPW  // toss xPMASK,sz_pack2
         POP2(xADRU,xLENU)
 
         mov x7,sp  // old_sp: x0,x1,argc,...
@@ -213,11 +213,8 @@ no_buf_pse:
 no_env_pse:
 
 /* Construct arglist for upx_main */
-        ldr x7,PAGE_MASK
-        mov x6,xelfa  // Elf64_Ehdr (reloc if ET_DYN and not pre-link)
+        mov x4,xelfa  // Elf64_Ehdr (reloc if ET_DYN and not pre-link)
           sub sp,sp,#MAX_ELF_HDR_64 + OVERHEAD  // alloca
-        adr x5,f_unfilter
-        mov x4,xfexp  // &f_decompress
         mov x3,xauxv  // new &Elf64_auxv_t
         mov x2,sp  // ehdr
         mov w1,wLENC  // total size of compressed data
@@ -451,6 +448,8 @@ hex:
         .unreq cto
         .unreq fid
 
+  section SYSCALLS; .balign 4
+
 __NR_SYSCALL_BASE= 0
 
 __NR_exit     = 0x5d + __NR_SYSCALL_BASE  // 93
@@ -466,6 +465,8 @@ __NR_readlink = 0x4e + __NR_SYSCALL_BASE  // 78
 __NR_mmap     = 0xde + __NR_SYSCALL_BASE  // 222
 __NR_mprotect = 0xe2 + __NR_SYSCALL_BASE  // 226
 __NR_munmap   = 0xd7 + __NR_SYSCALL_BASE  // 215
+__NR_memfd_create= 0x117 + __NR_SYSCALL_BASE  // 279
+__NR_ftruncate= 0x2e + __NR_SYSCALL_BASE  // 46
 
         .globl my_bkpt
 my_bkpt:
@@ -477,28 +478,28 @@ exit:
         do_sys __NR_exit
 
         .globl read
-read:
-        do_sys __NR_read; ret
+read:   do_sys __NR_read; ret
 
         .globl write
-write:
-        do_sys __NR_write; ret
+write:  do_sys __NR_write; ret
 
         .globl close
-close:
-        do_sys __NR_close; ret
+close:  do_sys __NR_close; ret
 
         .globl getpid
-getpid:
-        do_sys __NR_getpid; ret
+getpid: do_sys __NR_getpid; ret
 
         .globl brk
-brk:
-        do_sys __NR_brk; ret
+brk:    do_sys __NR_brk; ret
 
         .globl munmap
-munmap:
-        do_sys __NR_munmap; ret
+munmap: do_sys __NR_munmap; ret
+
+        .globl memfd_create
+memfd_create:   do_sys __NR_memfd_create; ret
+
+        .globl ftruncate
+ftruncate: do_sys __NR_ftruncate; ret
 
         .globl unlink
 unlink:
@@ -538,6 +539,16 @@ div10: .globl div10
         udiv x0,x0,x1
         ret
 #endif  /*}*/
+
+memcpy: .globl memcpy  // void *memcpy(void *dst, void const *src, size_t len)
+        ldrb w3,[x1],#1; sub  x2,x2,#1
+        strb w3,[x0],#1; cbnz x2,memcpy
+        ret
+
+memset: .globl memset  // void *memset(void *dst, int c, size_t len);
+        strb w1,[x0],#1; sub  x2,x2,#1
+                         cbnz x2,memset
+        ret
 
 // vi:ts=8:et:nowrap
 

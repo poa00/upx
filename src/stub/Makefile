@@ -700,6 +700,8 @@ tc.arm64-linux.elf.gcc  = arm64-linux-gcc-4.9.2 -nostdinc -MMD -MT $@
 tc.arm64-linux.elf.gcc += -fno-exceptions -fno-asynchronous-unwind-tables
 tc.arm64-linux.elf.gcc += -Wall -W -Wcast-align -Wcast-qual -Wstrict-prototypes -Wwrite-strings -Werror
 
++tc.arm64-expand.gcc = $(tc.arm64-linux.elf.gcc)
+
 tc.arm64-linux.elf-fold.ld       = arm64-linux-ld-2.25
 tc.arm64-linux.elf-so_fold.ld    = arm64-linux-ld-2.25
 
@@ -707,15 +709,16 @@ tc.arm64-linux.elf-entry.objcopy     = arm64-linux-objcopy-2.25 -F elf64-littlea
 tc.arm64-linux.elf-so_entry.objcopy  = arm64-linux-objcopy-2.25 -F elf64-littleaarch64
 tc.arm64-linux.elf-fold.objcopy      = arm64-linux-objcopy-2.25 -F elf64-littleaarch64
 tc.arm64-linux.elf-so_fold.objcopy   = arm64-linux-objcopy-2.25 -F elf64-littleaarch64
-tc.arm64-linux.elf-main.objcopy      = arm64-linux-objcopy-2.25 -F elf64-littleaarch64
+tc.arm64-linux.elf-main2.objcopy     = arm64-linux-objcopy-2.25 -F elf64-littleaarch64
 tc.arm64-linux.elf-so_main.objcopy   = arm64-linux-objcopy-2.25 -F elf64-littleaarch64
 
 tc.arm64-linux.elf-entry.objdump     = arm64-linux-objdump-2.25
 tc.arm64-linux.elf-so_entry.objdump  = arm64-linux-objdump-2.25
 tc.arm64-linux.elf-fold.objdump      = arm64-linux-objdump-2.25
 tc.arm64-linux.elf-so_fold.objdump   = arm64-linux-objdump-2.25
-tc.arm64-linux.elf-main.objdump      = arm64-linux-objdump-2.25
+tc.arm64-linux.elf-main2.objdump     = arm64-linux-objdump-2.25
 tc.arm64-linux.elf-so_main.objdump   = arm64-linux-objdump-2.25
+tc.arm64-expand.objdump              = arm64-linux-objdump-2.25
 
 arm64-linux.elf-entry.h : $(srcdir)/src/$$T.S
 	$(call tc,gcc) -c $< -o tmp/$T.bin
@@ -727,10 +730,13 @@ arm64-linux.elf-so_entry.h: $(srcdir)/src/$$T.S
 	$(call tc,f-embed_objinfo_without_xstrip,tmp/$T.bin)
 	$(call tc,bin2h) tmp/$T.bin $@
 
-arm64-linux.elf-fold.h : tmp/$$T.o tmp/arm64-linux.elf-main.o $(srcdir)/src/arm64-linux.elf-fold.lds
-	$(call tc,ld) --strip-all -T $(srcdir)/src/arm64-linux.elf-fold.lds -Map tmp/$T.map $(filter %.o,$^) -o tmp/$T.bin
-	$(call tc,f-objstrip,tmp/$T.bin)
-	$(call tc,sstrip) tmp/$T.bin
+arm64-linux.elf-fold.h : $(srcdir)/src/$$T.lds \
+            tmp/$$T.o \
+            tmp/arm64-expand.o \
+            tmp/arm64-linux.elf-main2.o
+	$(call tc,ld) -r -T $(srcdir)/src/$T.lds -Map tmp/$T.map $(filter %.o,$^) -o tmp/$T.bin
+	$(call tc,objdump) -Dr $(tc_objdump_disasm_options) tmp/$T.bin | $(RTRIM) > tmp/$T.bin.disasm
+	$(call tc,f-embed_objinfo_without_xstrip_keep_dot_text,tmp/$T.bin)
 	$(call tc,bin2h) tmp/$T.bin $@
 
 arm64-linux.elf-so_fold.h : tmp/$$T.o tmp/arm64-linux.elf-so_main.o $(srcdir)/src/$$T.lds tmp/arm64-expand.o
@@ -749,8 +755,9 @@ tmp/arm64-linux.elf-so_fold.o : $(srcdir)/src/$$T.S
 
 tmp/arm64-expand.o: $(srcdir)/src/$$T.S
 	$(call tc,gcc) -c $< -o $@
+	arm64-linux-objdump-2.25 -Dr $(tc_objdump_disasm_options) tmp/$T.o | $(RTRIM) > tmp/$T.o.disasm
 
-tmp/arm64-linux.elf-main.o : $(srcdir)/src/$$T.c $(srcdir)/src/arm64-linux.elf-main.c
+tmp/arm64-linux.elf-main2.o : $(srcdir)/src/$$T.c
 	$(call tc,gcc) -c -Os $< -o $@
 	$(call tc,f-objstrip,$@)
 

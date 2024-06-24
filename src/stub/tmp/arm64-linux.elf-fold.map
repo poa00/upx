@@ -6,48 +6,82 @@ Name             Origin             Length             Attributes
 
 Linker script and memory map
 
-                0x00000000001000bc                . = ((0x100000 + SIZEOF_HEADERS) + 0xc)
-
-.text           0x00000000001000bc      0xae4
- *(.text)
- .text          0x00000000001000bc      0x300 tmp/arm64-linux.elf-fold.o
-                0x00000000001000c4                get_page_mask
-                0x00000000001000d4                mmap_privanon
-                0x00000000001000e4                mmap
-                0x0000000000100100                Pprotect
-                0x0000000000100100                mprotect
-                0x0000000000100318                my_bkpt
-                0x0000000000100320                exit
-                0x0000000000100328                read
-                0x0000000000100334                write
-                0x0000000000100340                close
-                0x000000000010034c                getpid
-                0x0000000000100358                brk
-                0x0000000000100364                munmap
-                0x0000000000100370                unlink
-                0x0000000000100384                readlink
-                0x000000000010038c                open
-                0x00000000001003a8                __clear_cache
- .text          0x00000000001003bc      0x7e4 tmp/arm64-linux.elf-main.o
-                0x0000000000100a38                upx_main
- *(.data)
- .data          0x0000000000100ba0        0x0 tmp/arm64-linux.elf-fold.o
- .data          0x0000000000100ba0        0x0 tmp/arm64-linux.elf-main.o
-
-.iplt           0x0000000000100ba0        0x0
- .iplt          0x0000000000100ba0        0x0 tmp/arm64-linux.elf-fold.o
-
-.rela.dyn       0x0000000000100ba0        0x0
- .rela.iplt     0x0000000000100ba0        0x0 tmp/arm64-linux.elf-fold.o
-
-.data
+                0x000000000000004c                . = (SIZEOF_HEADERS + 0xc)
 LOAD tmp/arm64-linux.elf-fold.o
-LOAD tmp/arm64-linux.elf-main.o
+LOAD tmp/arm64-expand.o
+LOAD tmp/arm64-linux.elf-main2.o
 OUTPUT(tmp/arm64-linux.elf-fold.bin elf64-littleaarch64)
 
-.igot.plt       0x0000000000100ba0        0x0
- .igot.plt      0x0000000000100ba0        0x0 tmp/arm64-linux.elf-fold.o
+.text           0x0000000000000000      0xaa8
+ .text          0x0000000000000000      0x250 tmp/arm64-linux.elf-fold.o
+                0x0000000000000008                get_page_mask
+                0x0000000000000018                mmap_privanon
+                0x0000000000000028                mmap
+                0x0000000000000044                Pprotect
+                0x0000000000000044                mprotect
+ .text          0x0000000000000250        0x0 tmp/arm64-expand.o
+ .text          0x0000000000000250      0x858 tmp/arm64-linux.elf-main2.o
+                0x0000000000000904                underlay
+                0x0000000000000970                upx_main
 
-.bss            0x0000000000100ba0        0x0
- .bss           0x0000000000100ba0        0x0 tmp/arm64-linux.elf-fold.o
- .bss           0x0000000000100ba0        0x0 tmp/arm64-linux.elf-main.o
+.data           0x0000000000000000        0x0
+ .data          0x0000000000000000        0x0 tmp/arm64-linux.elf-fold.o
+ .data          0x0000000000000000        0x0 tmp/arm64-expand.o
+ .data          0x0000000000000000        0x0 tmp/arm64-linux.elf-main2.o
+
+.bss            0x0000000000000000        0x0
+ .bss           0x0000000000000000        0x0 tmp/arm64-linux.elf-fold.o
+ .bss           0x0000000000000000        0x0 tmp/arm64-expand.o
+ .bss           0x0000000000000000        0x0 tmp/arm64-linux.elf-main2.o
+
+SYSCALLS        0x0000000000000000       0xe0
+ SYSCALLS       0x0000000000000000       0xe0 tmp/arm64-linux.elf-fold.o
+                0x0000000000000000                my_bkpt
+                0x0000000000000008                exit
+                0x0000000000000010                read
+                0x000000000000001c                write
+                0x0000000000000028                close
+                0x0000000000000034                getpid
+                0x0000000000000040                brk
+                0x000000000000004c                munmap
+                0x0000000000000058                memfd_create
+                0x0000000000000064                ftruncate
+                0x0000000000000070                unlink
+                0x0000000000000084                readlink
+                0x000000000000008c                open
+                0x00000000000000a8                __clear_cache
+                0x00000000000000bc                memcpy
+                0x00000000000000d0                memset
+
+EXP_HEAD        0x0000000000000000      0x104
+ EXP_HEAD       0x0000000000000000      0x104 tmp/arm64-expand.o
+                0x0000000000000000                f_expand
+
+EXP_TAIL        0x0000000000000000       0x20
+ EXP_TAIL       0x0000000000000000       0x20 tmp/arm64-expand.o
+                0x0000000000000000                eof
+
+NRV2E           0x0000000000000000      0x17c
+ NRV2E          0x0000000000000000      0x17c tmp/arm64-expand.o
+                0x0000000000000000                ucl_nrv2e_decompress_32
+
+NRV2D           0x0000000000000000      0x170
+ NRV2D          0x0000000000000000      0x170 tmp/arm64-expand.o
+                0x0000000000000000                ucl_nrv2d_decompress_32
+
+NRV2B           0x0000000000000000      0x144
+ NRV2B          0x0000000000000000      0x144 tmp/arm64-expand.o
+                0x0000000000000000                ucl_nrv2b_decompress_32
+
+LZMA_ELF00      0x0000000000000000      0x10c
+ LZMA_ELF00     0x0000000000000000      0x10c tmp/arm64-expand.o
+
+LZMA_DEC20      0x0000000000000000      0x968
+ LZMA_DEC20     0x0000000000000000      0x968 tmp/arm64-expand.o
+
+LZMA_DEC10      0x0000000000000000      0x4a0
+ LZMA_DEC10     0x0000000000000000      0x4a0 tmp/arm64-expand.o
+                0x0000000000000000                LzmaDecode
+
+LZMA_DEC30      0x0000000000000000        0x0
+ LZMA_DEC30     0x0000000000000000        0x0 tmp/arm64-expand.o
