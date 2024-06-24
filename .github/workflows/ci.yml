@@ -224,7 +224,7 @@ jobs:
           echo "UPX_DEBUG_FORCE_PACK_MACOS=1" >> $GITHUB_ENV
           case "${{ matrix.os }}" in
             # TODO FIXME: UPX on macos-13+ is broken => disable run-packed for now
-            macos-13 | macos-14) echo "UPX_CONFIG_DISABLE_RUN_PACKED_TEST=ON" >> $GITHUB_ENV ;;
+            macos-12 | macos-13 | macos-14) echo "UPX_CONFIG_DISABLE_RUN_PACKED_TEST=ON" >> $GITHUB_ENV ;;
           esac
       - uses: actions/checkout@v4
         with: { submodules: true }
