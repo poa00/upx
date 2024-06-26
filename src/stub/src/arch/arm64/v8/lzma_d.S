@@ -107,6 +107,7 @@ State= 0
         strb t0,[a0,#0]
         bl ClangLzmaDecode  // the call
 
+#ifndef DAISY_CHAIN  //{
 eof_lzma:
         mov sp,fp
         mov x5,x0  // save result value
@@ -114,11 +115,11 @@ eof_lzma:
         ldr x1,[x1]  // outSizeProcessed
 
         add x1,x1,x0  // last
-cache_lzma:
         sync_cache  // x0= lo; x1= hi; uses x2-x4
 
         mov x0,x5  // result value
         ret
+#endif  //}
 
 #undef t0
 #undef t1
@@ -157,7 +158,6 @@ ClangLzmaDecode:  // entry to C-lang LzmaDecode in next section
 #endif  /*}*/
 
   section LZMA_DEC30
-
 not_lzma:
 
 // vi:ts=8:et

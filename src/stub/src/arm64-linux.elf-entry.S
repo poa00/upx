@@ -84,6 +84,8 @@ __NR_munmap   = 0xd7  // 215
 __NR_openat   = 0x38  //  56
 __NR_write    = 0x40  //  64
 
+MFD_EXEC= 0x0010  // memfd_create should allow later PROT_EXEC
+
 arg1  .req x0
 arg1w .req w0
 arg2  .req x1
@@ -176,8 +178,8 @@ F_LENU= 3 * NBPW
 L00:
         mov xFOLD,lr
 
-        mov w1,#0  // flags
-        add x0,xFOLD,#strupx - LxFOLD
+        mov w1,#MFD_EXEC  // flags
+        adr x0,strupx
         do_sys __NR_memfd_create; mov mfd,w0
 
 // alloca() for de-compressed stub
@@ -223,7 +225,7 @@ wmeth  .req w4
         mov arg6,#0  // beginning of file
         mov arg5w,mfd
         mov arg4w,#MAP_SHARED  // modes
-        mov arg3w,#PROT_READ|PROT_EXEC  // FIXME: add PROT_WRITE for DEBUG only
+        mov arg3w,#PROT_WRITE|PROT_READ|PROT_EXEC  // FIXME: add PROT_WRITE for DEBUG only
         ldr arg2w,[xFOLD,#sz_unc + LBINFO - LxFOLD]
         str arg2,[sp,#F_LENU]
         mov arg1,#0  // addr (kernel chooses)
@@ -247,7 +249,15 @@ zfind:
         ret
 
 f_expand:
+// nrv2b code is hard-wired here
 #define NO_METHOD_CHECK 1
+
+// only one decompressor; build 'eof' return
+#undef DAISY_CHAIN
+
+// use of mmap() forces implcit cache sync
+#define NO_SYNC_CACHE 1
+
 #include "arch/arm64/v8/nrv2b_d32.S"
 
   section ELFMAINY

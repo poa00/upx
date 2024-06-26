@@ -34,6 +34,13 @@
 #endif
         jmp top_n2e
 
+#undef EOF
+#ifdef WINDOWS_BACK
+  #define EOF eofe
+#else
+  #define EOF eof_n2e
+#endif
+
 lit_n2e:
         incq %rsi; movb %dl,(%rdi)
         incq %rdi
@@ -53,7 +60,7 @@ getoff_n2e:
         subl $ 3,off; jc offprev_n2e
         shll $ 8,off; movzbl %dl,%edx
         orl %edx,off; incq %rsi
-        xorl $~0,off; jz eof
+        xorl $~0,off; jz EOF
         sarl off  # Carry= original low bit
         movslq off,dispq  # XXX: 2GB
         jc lenlast_n2e
@@ -83,6 +90,7 @@ bot_n2e:  # In: 0==len
 not_n2e:
         push %rdi; pop %rsi  # src = arg1
 #endif
+        // fall into daisy chain
 
 /*
 vi:ts=8:et:nowrap

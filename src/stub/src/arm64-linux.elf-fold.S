@@ -49,8 +49,9 @@ sz_b_info = 12
   b_method= 8
 sz_auxv= 2*NBPW
 
-is_ptinterp=     (1<<0)
-unmap_all_pages= (1<<1)
+//is_ptinterp=     (1<<0)
+Bunmap_all_pages= 1  // bit position for 'tbnz' opcode
+//unmap_all_pages= (1<<Bunmap_all_pages=)
 
 MAP_PRIVATE=   0x02
 MAP_FIXED=     0x10
@@ -92,7 +93,7 @@ bits_privanon:  // known offset (NBPW + 2*4)
         .int MAP_PRIVATE | MAP_ANONYMOUS  // Linux default; else QNX
 
 fold_begin:  // known offset (NBPW + 3*4)
-////    brk #0  // DEBUG
+////    bkpt  // DEBUG
         b L10
 
 // In:  sp/ PMASK,LENC,ADRU,LENU, x0,x1, argc,argv,...
@@ -151,7 +152,8 @@ L10:
         ldr x2,[x1],#2*NBPW
         cbnz x2,.L20  // AT_NULL
 
-        ldr wFOLD,[xFOLD]; tst wFOLD,#unmap_all_pages; beq yes_buf_pse
+        ldr wFOLD,[xFOLD]
+        tbz wFOLD,#Bunmap_all_pages,yes_buf_pse
           add x1,sp,#3*NBPW  // old_argv; avoid 0==argc impostor for terminator of argv
           add x0,sp,#3*NBPW  // new argv
         b no_buf_pse
@@ -182,7 +184,7 @@ no_buf_pse:
         str x2,[x0],#NBPW
         cbnz x2,.Lenv
 
-        tst wFOLD,#unmap_all_pages; bne 0f
+        tbnz wFOLD,#Bunmap_all_pages,0f
         sub x4,x0,#NBPW  // added env ptr goes here
         str xzr,[x0],#NBPW  // terminator after added ptr
         mov x7,x0  // new &Elf64_auxv_t
@@ -195,7 +197,7 @@ no_buf_pse:
         cbnz x2,.Laux  // AT_NULL
         mov xauxe,x0  // last of new auxv
 
-        tst wFOLD,#unmap_all_pages; bne no_env_pse
+        tbnz wFOLD,#Bunmap_all_pages,no_env_pse
         mov x1,x0
         str x1,[x4]  // new env ptr
         ldr w2,space3eq
@@ -232,7 +234,7 @@ no_env_pse:
         mov x0,xelfa  // hi &Elf64_Ehdr
         call munmap  // discard C_TEXT compressed data
 
-        tst wFOLD,#unmap_all_pages; bne no_map_pse
+        tbnz wFOLD,#Bunmap_all_pages,no_map_pse
 // Map 1 page of /proc/self/exe so that munmap does not remove all references
         mov x5,#0  // offset
         mov w4,wfd  // fd
@@ -470,7 +472,7 @@ __NR_ftruncate= 0x2e + __NR_SYSCALL_BASE  // 46
 
         .globl my_bkpt
 my_bkpt:
-        brk #0  // my_bkpt
+        bkpt  // my_bkpt
         ret
 
         .globl exit

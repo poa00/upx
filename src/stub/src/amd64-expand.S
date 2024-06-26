@@ -211,6 +211,9 @@ section LZMA_ELF00  // prefix for parameter juggling
 
   section EXP_TAIL
 eof:
+eof_n2b:
+eof_n2d:
+eof_n2e:
         pop %rax  // MATCH_53 dst_orig
         sub %rax,%rdi  // dst -= original dst
         pop %rax  // MATCH_52 src_EOF

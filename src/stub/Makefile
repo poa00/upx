@@ -696,7 +696,7 @@ tmp/armel-linux.elf-so_main.o : $(srcdir)/src/$$T.c
 arm64-linux.elf%.h : tc_list = arm64-linux.elf default
 arm64-linux.elf%.h : tc_bfdname = elf64-littleaarch64
 
-tc.arm64-linux.elf.gcc  = arm64-linux-gcc-4.9.2 -nostdinc -MMD -MT $@
+tc.arm64-linux.elf.gcc  = arm64-linux-gcc-4.9.2 -nostdinc -DDAISY_CHAIN=1 -MMD -MT $@
 tc.arm64-linux.elf.gcc += -fno-exceptions -fno-asynchronous-unwind-tables
 tc.arm64-linux.elf.gcc += -Wall -W -Wcast-align -Wcast-qual -Wstrict-prototypes -Wwrite-strings -Werror
 
@@ -786,6 +786,11 @@ arm64-linux.shlib%.h : $(srcdir)/src/$$T.S
 # ************************************************************************/
 
 arm64-win64.pe.h : tc_list = arm64-linux.elf default
+
+tc.arm64-win64.pe.gcc  = arm64-linux-gcc-4.9.2 -nostdinc -DWINDOWS_BACK=1 -MMD -MT $@
+tc.arm64-win64.pe.gcc += -fno-exceptions -fno-asynchronous-unwind-tables
+tc.arm64-win64.pe.gcc += -Wall -W -Wcast-align -Wcast-qual -Wstrict-prototypes -Wwrite-strings -Werror
+
 arm64-win64.pe.h : tc_bfdname = elf64-littleaarch64
 tc.arm64-win64.pe.objcopy  = arm64-linux-objcopy-2.25 -F elf64-littleaarch64
 tc.arm64-win64.pe.objdump  = arm64-linux-objdump-2.25

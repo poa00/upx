@@ -71,6 +71,8 @@ MAP_PRIVATE= 2
 MAP_FIXED=     0x10
 MAP_ANONYMOUS= 0x20
 
+MFD_EXEC= 0x0010
+
 SYS_mmap= 9  // 64-bit mode only!
 
 FD_stderr= 2
@@ -119,7 +121,7 @@ AT_PAGESZ= 6  // /usr/include/elf.h
 // Create anonymous temporary file on mfd
         push $'u'|('p'<<8)|('x'<<16)|(0<<24)
         push %rsp; pop %arg1  // "upx"
-        subl %arg2l,%arg2l  // 0
+        mov $MFD_EXEC,%arg2l
         movl $__NR_memfd_create,%eax; call sys_check; mov %rax,%r12  // mfd
         pop %rcx  // discard "upx"
 
@@ -249,7 +251,7 @@ eof_n2b:
         mov %r12,%arg5  // mfd
         push $MAP_SHARED; pop %sys4
         push %arg3; pop %arg2  // LENU
-        push $PROT_READ|PROT_EXEC; pop %arg3  // FIXME: add PROT_WRITE for DEBUG only
+        push $PROT_WRITE|PROT_READ|PROT_EXEC; pop %arg3  // FIXME: add PROT_WRITE for DEBUG only
         subl %edi,%edi  // (%arg1)dst = 0;  // kernel chooses addr
         push $__NR_mmap; pop %rax; call sys_check
         push %rax  // MATCH_12

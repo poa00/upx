@@ -34,6 +34,13 @@
 #endif
         jmp top_n2d
 
+#undef EOF
+#ifdef WINDOWS_BACK
+  #define EOF eofd
+#else
+  #define EOF eof_n2d
+#endif
+
 lit_n2d:
         incq %rsi; movb %dl,(%rdi)
         incq %rdi
@@ -53,7 +60,7 @@ getoff_n2d:
         subl $ 3,off; jc offprev_n2d
         shll $ 8,off; movzbl %dl,%edx
         orl %edx,off; incq %rsi
-        xorl $~0,off; jz eof
+        xorl $~0,off; jz EOF
         sarl     off  // Carry= original low bit
         movslq   off,dispq  // XXX: 2GB
         jmp len_n2d-2  // CHEAT: assume tail of getnextb is "adcl len,len"
@@ -77,7 +84,7 @@ bot_n2d:  // In: 0==len
 not_n2d:
         push %rdi; pop %rsi  # src = arg1
 #endif
-
+        // fall into daisy chain
 /*
 vi:ts=8:et:nowrap
 */

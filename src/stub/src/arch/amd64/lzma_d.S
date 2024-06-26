@@ -94,7 +94,7 @@ section LZMA_ELF00
         leaq -szSizeT(%arg1),%arg4  // &inSizeProcessed
 
 #ifdef WINDOWS_BACK
-        push %rax  // return address slot (dummy CALL) [value ignored]
+        pushq %rax  // return address slot (dummy CALL) [value ignored]
 #else
         push $0x5A  // return address slot (dummy CALL) [value easy to debug]
 #endif // WINDOWS_BACK

@@ -89,7 +89,6 @@ no_unf:
     .unreq xsrclen
     .unreq xdst
     .unreq xdstlen
-    .unreq methb
 
 decompress:  // (src *, cpr_len, dst *, &dstlen);
 //  sections NRV2B, etc, inserted here by addLoader() from ::buildLinuxLoader()
@@ -97,15 +96,34 @@ decompress:  // (src *, cpr_len, dst *, &dstlen);
   section EXP_TAIL
         src .req x0
         dst .req x2
-  .type eof,function
+        dstw .req w2
   .globl eof
-eof:  // end of a compressed extent; need sync_cache
+eof_nrv: // .globl eof_nrv .type eof_nrv,%function
+eof_n2e: // .globl eof_n2e .type eof_n2e,%function
+eof_n2d: // .globl eof_n2d .type eof_n2d,%function
+eof_n2b: // .globl eof_n2b .type eof_n2b,%function
+eof:  // MATCH_90  end of a compressed extent; need sync_cache after unfilter
         ldr x3,[sp],#NBPW  // &input_eof
-        sub x3,x0,x3  // src -= eof;  // return 0: good; else: bad
-        ldr x0,[sp],#NBPW  // original dst
-        ldr x1,[sp],#NBPW; sub x1,x2,x1  // dst -= original dst
-        ldr x3,[sp],#NBPW; str dst,[x3]  // actual length used at dst  XXX: 4GB
+        sub x0,src,x3  // src -= eof;  // return 0: good; else: bad
+        ldr x1,[sp],#NBPW  // original dst
+        sub dst,dst,x1  // dst -= original dst; actual length of output
+        ldr x1,[sp],#NBPW  // &dstlen
+        str dstw,[x1]  // actual length used at dst  XXX: 4GB
+        ldr lr,[sp],#NBPW
         ret
+
+eof_lzma: .globl elf_lzma
+        mov sp,fp
+        mov x5,x0  // save result value
+        POP4(x0,x1, fp,lr)  // x0= orig_dst; x1= plen_dst
+        ldr x1,[x1]  // outSizeProcessed
+
+        add x1,x1,x0  // last
+        sync_cache  // x0= lo; x1= hi; uses x2-x4
+
+        mov x0,x5  // result value
+        ret
+
     .unreq src
     .unreq dst
 
@@ -117,9 +135,6 @@ eof:  // end of a compressed extent; need sync_cache
 #define M_NRV2E_8    9
 #define M_CL1B_LE32     11
 #define M_LZMA          14
-
-// FIXME: will need extra parameter for multi-method decompression
-#define NO_METHOD_CHECK 1
 
   section NRV2E
 #include "arch/arm64/v8/nrv2e_d32.S"
