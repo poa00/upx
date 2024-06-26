@@ -118,12 +118,29 @@ AT_PAGESZ= 6  // /usr/include/elf.h
         neg %rcx; push %rcx  // F_PMASK
         push %rdx  // F_RDX
 
-// Create anonymous temporary file on mfd
-        push $'u'|('p'<<8)|('x'<<16)|(0<<24)
+#define arg2l esi
+#define arg3l edx
+// Create anonymous temporary file on mfd; like upxfd_create
+        push $'u'|('p'<<8)|('x'<<16)|(0<<24)  // MATCH_22
         push %rsp; pop %arg1  // "upx"
         mov $MFD_EXEC,%arg2l
-        movl $__NR_memfd_create,%eax; call sys_check; mov %rax,%r12  // mfd
-        pop %rcx  // discard "upx"
+0: // try memfd_create
+        movl $__NR_memfd_create,%eax; syscall
+        test %eax,%eax; jns ok_memfd  // success
+        test %arg2l,%arg2l; jz no_memfd  // memfd_create failed twice
+        xor %arg2l,%arg2l; jmp 0b  // try again without MFD_EXEC
+no_memfd:  // so try /dev/shm
+O_RDWR= 2
+O_DIRECTORY= 0200000  // 0x010000
+O_TMPFILE= 020000000  // 0x400000
+        call 0f; .int 0700, O_RDWR|O_DIRECTORY|O_TMPFILE; .asciz "/dev/shm"; 0: pop %rsi
+        lodsl;            xchg %eax,%arg3l
+        lodsl; push %rsi; xchg %eax,%arg2l
+               pop %arg1
+        push $__NR_open; pop %rax; call sys_check
+ok_memfd:
+        mov %rax,%r12  // mfd
+        pop %rcx  // MATCH_22  discard "upx"
 
         lea sz_pack2(%rip),%rdi
         mov (%rdi),%ecx  // sz_pack2: length before stub
@@ -242,15 +259,19 @@ eof_n2b:
         sub $INSURANCE,%arg3  // memcheck limit
         push %rsp; pop %arg2  // buffer
         mov %r12,%arg1  // mfd
+        push %arg3  // MATCH_21  save LENU
+0:  // /dev/shm might be restricted to 8KiB at a time!
         push $__NR_write; pop %rax; call sys_check
+        add %rax,%arg2  // advance ptr
+        sub %eax,%arg3l; jnz 0b  // decrement count
+        pop %arg2  // MATCH_21 restore LENU to mmap.len
 // de-alloca()
         push old_sp; pop %rsp
 
 // Map unfolded code the SELinux way
-        sub %arg6l,%arg6l  // 0  offset
+        xor %arg6,%arg6  // 0  offset
         mov %r12,%arg5  // mfd
         push $MAP_SHARED; pop %sys4
-        push %arg3; pop %arg2  // LENU
         push $PROT_WRITE|PROT_READ|PROT_EXEC; pop %arg3  // FIXME: add PROT_WRITE for DEBUG only
         subl %edi,%edi  // (%arg1)dst = 0;  // kernel chooses addr
         push $__NR_mmap; pop %rax; call sys_check

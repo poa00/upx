@@ -7,14 +7,14 @@
  */
 
 #if defined(__i386__) //}{
-#define addr_string(string) ({ \
+#define addr_string(string) (char *)({ \
     char const *str; \
     asm("call 0f; .asciz \"" string "\"; 0: pop %0" \
 /*out*/ : "=r"(str) ); \
     str; \
 })
 #elif defined(__arm__) //}{
-#define addr_string(string) ({ \
+#define addr_string(string) (char *)({ \
     char const *str; \
     asm("bl 0f; .string \"" string "\"; .balign 4; 0: mov %0,lr" \
 /*out*/ : "=r"(str) \

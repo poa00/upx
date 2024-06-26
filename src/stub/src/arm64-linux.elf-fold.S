@@ -319,8 +319,10 @@ space3eq:
         .ascii "   ="
 proc_self_exe:
         .asciz "/proc/self/exe"
-        .balign 4
+devshm:
+        .asciz "/dev/shm"
 
+        .balign 4
 f_unfilter:  // (char *ptr, uint len, uint cto, uint fid)
         ptr  .req x0
         len  .req x1
@@ -497,8 +499,24 @@ brk:    do_sys __NR_brk; ret
         .globl munmap
 munmap: do_sys __NR_munmap; ret
 
-        .globl memfd_create
-memfd_create:   do_sys __NR_memfd_create; ret
+ufdc_bits: .int O_RDWR|O_DIRECTORY|O_TMPFILE
+upxfd_create: .globl upxfd_create // (char *tag, unsigned flags)
+0: // try memfd_create
+        mov w8,#__NR_memfd_create; svc #0
+        tst w0,w0; bpl ok_memfd  // success
+        cbz w1, no_memfd  // memfd_create failed twice
+        mov w1,#0; b 0b  // try again without MFD_EXEC
+no_memfd:  // so try /dev/shm
+O_RDWR= 2
+O_DIRECTORY= 0200000  // 0x010000
+O_TMPFILE= 020000000  // 0x400000
+        mov w3,#0700
+        ldr w2,ufdc_bits
+        adr x1,devshm
+        mov w0,#AT_FDCWD
+        mov w8,#__NR_openat; svc #0
+ok_memfd:
+        ret
 
         .globl ftruncate
 ftruncate: do_sys __NR_ftruncate; ret

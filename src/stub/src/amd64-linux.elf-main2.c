@@ -34,6 +34,9 @@
 #endif  //}
 
 #include "include/linux.h"
+// memfd_create, but fall back to /dev/shm
+// such as Ubuntu-20.04, Linux kernel 5.15.0-67, #74-20.04.1, 2023-02-22
+extern int upxfd_create(char const *tag, unsigned flags);
 #define MFD_EXEC 0x0010
 
 extern void *memcpy(void *dst, void const *src, size_t n);
@@ -259,7 +262,7 @@ make_hatch_x86_64(
             ((long *)hatch)[0] = 0xc35a050f;  // syscall; pop %arg3{%rdx); ret
         }
         else { // Does not fit at hi end of .text, so must use a new page "permanently"
-            int mfd = memfd_create(addr_string("upx"), MFD_EXEC);  // the directory entry
+            int mfd = upxfd_create(addr_string("upx"), MFD_EXEC);  // the directory entry
             write(mfd, addr_string("\x0f\x05\x5a\xc3"), sz_code);
             hatch = mmap(0, sz_code, PROT_READ|PROT_EXEC, MAP_SHARED, mfd, 0);
             close(mfd);
@@ -294,7 +297,7 @@ make_hatch_ppc64(
             memcpy(hatch, code, sz_code);
         }
         else { // Does not fit at hi end of .text, so must use a new page "permanently"
-            int mfd = memfd_create(addr_string("upx"), MFD_EXEC);  // the directory entry
+            int mfd = upxfd_create(addr_string("upx"), MFD_EXEC);  // the directory entry
             write(mfd, code, sz_code);
             hatch = mmap(0, sz_code, PROT_READ|PROT_EXEC, MAP_SHARED, mfd, 0);
             close(mfd);
@@ -329,7 +332,7 @@ make_hatch_arm64(
             memcpy(hatch, code, sz_code);
         }
         else { // Does not fit at hi end of .text, so must use a new page "permanently"
-            int mfd = memfd_create(addr_string("upx"), MFD_EXEC);  // the directory entry
+            int mfd = upxfd_create(addr_string("upx"), MFD_EXEC);  // the directory entry
             write(mfd, code, sz_code);
             hatch = mmap(0, sz_code, PROT_READ|PROT_EXEC, MAP_SHARED, mfd, 0);
             close(mfd);
@@ -551,7 +554,7 @@ do_xmap(
             // Cannot set PROT_EXEC except via mmap() into a region (Linux "vma")
             // that has never had PROT_WRITE.  So use a Linux-only "memory file"
             // to hold the contents.
-            mfd = memfd_create(addr_string("upx"), MFD_EXEC);  // the directory entry
+            mfd = upxfd_create(addr_string("upx"), MFD_EXEC);  // the directory entry
             ftruncate(mfd, mlen);  // Allocate the pages in the file.
             if (frag) {
                 // Note: *addr does not exist yet, and figuring out a substitute

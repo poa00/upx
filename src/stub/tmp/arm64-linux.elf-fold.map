@@ -12,17 +12,17 @@ LOAD tmp/arm64-expand.o
 LOAD tmp/arm64-linux.elf-main2.o
 OUTPUT(tmp/arm64-linux.elf-fold.bin elf64-littleaarch64)
 
-.text           0x0000000000000000      0xa98
- .text          0x0000000000000000      0x240 tmp/arm64-linux.elf-fold.o
+.text           0x0000000000000000      0xaa0
+ .text          0x0000000000000000      0x248 tmp/arm64-linux.elf-fold.o
                 0x0000000000000008                get_page_mask
                 0x0000000000000018                mmap_privanon
                 0x0000000000000028                mmap
                 0x0000000000000044                Pprotect
                 0x0000000000000044                mprotect
- .text          0x0000000000000240        0x0 tmp/arm64-expand.o
- .text          0x0000000000000240      0x858 tmp/arm64-linux.elf-main2.o
-                0x00000000000008f4                underlay
-                0x0000000000000960                upx_main
+ .text          0x0000000000000248        0x0 tmp/arm64-expand.o
+ .text          0x0000000000000248      0x858 tmp/arm64-linux.elf-main2.o
+                0x00000000000008fc                underlay
+                0x0000000000000968                upx_main
 
 .data           0x0000000000000000        0x0
  .data          0x0000000000000000        0x0 tmp/arm64-linux.elf-fold.o
@@ -34,8 +34,8 @@ OUTPUT(tmp/arm64-linux.elf-fold.bin elf64-littleaarch64)
  .bss           0x0000000000000000        0x0 tmp/arm64-expand.o
  .bss           0x0000000000000000        0x0 tmp/arm64-linux.elf-main2.o
 
-SYSCALLS        0x0000000000000000       0xe0
- SYSCALLS       0x0000000000000000       0xe0 tmp/arm64-linux.elf-fold.o
+SYSCALLS        0x0000000000000000      0x110
+ SYSCALLS       0x0000000000000000      0x110 tmp/arm64-linux.elf-fold.o
                 0x0000000000000000                my_bkpt
                 0x0000000000000008                exit
                 0x0000000000000010                read
@@ -44,14 +44,14 @@ SYSCALLS        0x0000000000000000       0xe0
                 0x0000000000000034                getpid
                 0x0000000000000040                brk
                 0x000000000000004c                munmap
-                0x0000000000000058                memfd_create
-                0x0000000000000064                ftruncate
-                0x0000000000000070                unlink
-                0x0000000000000084                readlink
-                0x000000000000008c                open
-                0x00000000000000a8                __clear_cache
-                0x00000000000000bc                memcpy
-                0x00000000000000d0                memset
+                0x000000000000005c                upxfd_create
+                0x0000000000000094                ftruncate
+                0x00000000000000a0                unlink
+                0x00000000000000b4                readlink
+                0x00000000000000bc                open
+                0x00000000000000d8                __clear_cache
+                0x00000000000000ec                memcpy
+                0x0000000000000100                memset
 
 EXP_HEAD        0x0000000000000000      0x104
  EXP_HEAD       0x0000000000000000      0x104 tmp/arm64-expand.o

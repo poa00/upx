@@ -757,8 +757,8 @@ tmp/arm64-expand.o: $(srcdir)/src/$$T.S
 	$(call tc,gcc) -c $< -o $@
 	arm64-linux-objdump-2.25 -Dr $(tc_objdump_disasm_options) tmp/$T.o | $(RTRIM) > tmp/$T.o.disasm
 
-tmp/arm64-linux.elf-main2.o : $(srcdir)/src/$$T.c
-	$(call tc,gcc) -c -Os $< -o $@
+tmp/arm64-linux.elf-main2.o : $(srcdir)/src/$$T.c $(srcdir)/src/amd64-linux.elf-main2.c
+	$(call tc,gcc) -c -Os $(srcdir)/src/arm64-linux.elf-main2.c -o $@
 	$(call tc,f-objstrip,$@)
 
 tmp/arm64-linux.elf-so_main.o : $(srcdir)/src/$$T.c

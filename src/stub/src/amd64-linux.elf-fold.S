@@ -216,8 +216,23 @@ my_bkpt: .globl my_bkpt
 proc_self_exe:
         .asciz "/proc/self/exe"
 
-memfd_create: .globl memfd_create
-        mov $__NR_memfd_create,%eax; jmp sysgo2
+upxfd_create: .globl upxfd_create // (char *tag, unsigned flags)
+0: // try memfd_create
+        movl $__NR_memfd_create,%eax; syscall
+        test %eax,%eax; jns ok_memfd  // success
+        test %arg2l,%arg2l; jz no_memfd  // memfd_create failed twice
+        xor %arg2l,%arg2l; jmp 0b  // try again without MFD_EXEC
+no_memfd:  // so try /dev/shm
+O_RDWR= 2
+O_DIRECTORY= 0200000  // 0x010000
+O_TMPFILE= 020000000  // 0x400000
+        call 0f; .int 0700, O_RDWR|O_DIRECTORY|O_TMPFILE; .asciz "/dev/shm"; 0: pop %rsi
+        lodsl;            xchg %eax,%arg3l
+        lodsl; push %rsi; xchg %eax,%arg2l
+               pop %arg1
+        push $__NR_open; pop %rax; call sys_check
+ok_memfd:
+        ret
 
 Pmap: .globl Pmap  // page-align the lo end
         mov PAGE_MASK(%rip),%rax; not %rax  // frag mask
@@ -230,6 +245,7 @@ mmap: .globl mmap
 sysgo:  # NOTE: kernel demands 4th arg in %sys4, NOT %arg4
         movzbl %al,%eax
 sysgo2:
+sys_check:
         push %rax  // save __NR_
         syscall  // %rax= -errno
         pop %rcx  // recover __NR_
