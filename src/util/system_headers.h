@@ -40,8 +40,15 @@
 #if defined(__CYGWIN64__) && !defined(__CYGWIN__)
 #error "missing __CYGWIN__"
 #endif
-#if defined(__clang__) || defined(__GNUC__)
+#if defined(__MINGW64__) && !defined(__MINGW32__)
+#error "missing __MINGW32__"
+#endif
+#if defined(_WIN64) && !defined(_WIN32)
+#error "missing _WIN32"
+#endif
+
 // byte order - these are pre-defined since gcc-4.6 (2011) and clang-3.2 (2012)
+#if defined(__clang__) || defined(__GNUC__)
 #if !defined(__ORDER_BIG_ENDIAN__) || (__ORDER_BIG_ENDIAN__ + 0 == 0)
 #error "missing __ORDER_BIG_ENDIAN__"
 #endif
@@ -61,6 +68,7 @@
 #error "unexpected __BYTE_ORDER__"
 #endif
 #endif
+
 // pic and pie
 #if defined(__PIC__) && defined(__pic__)
 static_assert((__PIC__) == (__pic__));

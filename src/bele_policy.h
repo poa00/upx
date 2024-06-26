@@ -49,7 +49,7 @@
 
 #if defined(BELE_RTP)
 struct AbstractPolicy {
-    explicit inline AbstractPolicy() noexcept {}
+    explicit inline AbstractPolicy() noexcept = default;
     virtual inline ~AbstractPolicy() noexcept {}
     V bool isBE() C = 0;
     V bool isLE() C = 0;
@@ -97,7 +97,7 @@ struct BEPolicy final
     : public AbstractPolicy
 #endif
 {
-    explicit inline BEPolicy() noexcept {}
+    explicit inline BEPolicy() noexcept = default;
 #if defined(BELE_CTP)
     typedef N_BELE_RTP::BEPolicy RTP_Policy;
 #elif defined(BELE_RTP)
@@ -156,7 +156,7 @@ struct LEPolicy final
     : public AbstractPolicy
 #endif
 {
-    explicit inline LEPolicy() noexcept {}
+    explicit inline LEPolicy() noexcept = default;
 #if defined(BELE_CTP)
     typedef N_BELE_RTP::LEPolicy RTP_Policy;
 #elif defined(BELE_RTP)

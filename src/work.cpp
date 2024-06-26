@@ -1,4 +1,4 @@
-/* work.cpp -- main driver
+/* work.cpp -- main work driver
 
    This file is part of the UPX executable compressor.
 
@@ -26,12 +26,12 @@
  */
 
 // This file implements the central loop, and it uses class PackMaster to
-// dispatch. PackMaster by itself will instantiate a concrete subclass
-// of class PackerBase which then does the actual work.
+// dispatch. PackMaster by itself will instantiate a concrete subclass of
+// class PackerBase which then does the actual work; search for "HERE".
 // And see p_com.cpp for a simple executable format.
 //
-// And this file also has the burden to deal with all those pesky low-level
-// file handling issues.
+// Additionally this file also has the burden to deal with all those pesky
+// low-level file handling issues.
 
 #define WANT_WINDOWS_LEAN_H 1 // _get_osfhandle, GetFileTime, SetFileTime
 #include "util/system_headers.h"

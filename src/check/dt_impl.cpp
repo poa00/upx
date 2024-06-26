@@ -59,6 +59,10 @@
 // warning: comparison with NaN always evaluates to false in fast floating point modes
 #pragma clang diagnostic ignored "-Wtautological-constant-compare"
 #endif
+#if defined(__FAST_MATH__) && defined(__clang__) && (__clang_major__ + 0 >= 18)
+// warning: use of NaN is undefined behavior due to the currently enabled floating-point options
+#pragma clang diagnostic ignored "-Wnan-infinity-disabled"
+#endif
 
 #include <doctest/doctest/parts/doctest.cpp>
 

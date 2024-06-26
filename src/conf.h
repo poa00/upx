@@ -1,4 +1,4 @@
-/* conf.h --
+/* conf.h -- primary configuration
 
    This file is part of the UPX executable compressor.
 
@@ -32,6 +32,7 @@
 **************************************************************************/
 
 #include "util/system_headers.h"
+#include "util/system_undefs.h"
 #include "version.h"
 
 #if !defined(__has_attribute)
@@ -47,6 +48,7 @@
 // reserve name "upx" for namespace
 namespace upx {}
 
+// check compiler core
 static_assert(CHAR_BIT == 8);
 static_assert(sizeof(short) == 2);
 static_assert(sizeof(int) == 4);
@@ -58,7 +60,7 @@ static_assert((1u << 31) << 1 == 0);
 static_assert(((int) (1u << 31)) >> 31 == -1); // arithmetic right shift
 static_assert((-1) >> 31 == -1);               // arithmetic right shift
 static_assert(CHAR_MAX == 255);                // -funsigned-char
-static_assert((char) (-1) == 255);
+static_assert((char) (-1) == 255);             // -funsigned-char
 
 // enable some more strict warnings for Git developer builds
 #if defined(UPX_CONFIG_DISABLE_WSTRICT) && (UPX_CONFIG_DISABLE_WSTRICT + 0 == 0)
@@ -215,20 +217,6 @@ typedef upx_int64_t upx_off_t;
 // portab
 **************************************************************************/
 
-// some platform system headers may pre-define these, so undef to avoid conflicts
-#undef _
-#undef __
-#undef ___
-#undef dos
-#undef large
-#undef linux
-#undef PAGE_MASK
-#undef PAGE_SIZE
-#undef small
-#undef SP
-#undef SS
-#undef tos
-#undef unix
 #if (ACC_OS_POSIX) && !defined(__unix__)
 #define __unix__ 1
 #endif

@@ -166,13 +166,13 @@ jobs:
             echo "===== parallel jobs: $jobs"
             parallel -kv --lb 'cd build/extra/{} && bash ../../../../misc/testsuite/mimic_ctest.sh' ::: $jobs
           fi
-      - name: Run file system test suite
+      - name: Run file system tests
         run: |
           jobs="gcc/debug gcc/release clang/debug clang/release"
           test "${{ matrix.use_extra }}" = "true" && jobs="$jobs gcc-m32/debug gcc-m32/release"
           echo "===== parallel jobs: $jobs"
           parallel -kv --lb 'cd build/extra/{} && bash ../../../../misc/testsuite/test_symlinks.sh' ::: $jobs
-      - name: Run file system test suite with Valgrind
+      - name: Run file system tests with Valgrind
         if: false # note: valgrind is SLOW
         run: |
           if command -v valgrind >/dev/null; then
@@ -237,6 +237,7 @@ jobs:
       - name: Check out test suite
         if: ${{ matrix.testsuite }}
         run: git clone --depth=1 https://github.com/upx/upx-testsuite ../deps/upx-testsuite
+      - run: set -x; xcode-select -p || true; xcodebuild -version || true
       - run: set -x; clang --version; clang++ --version
       - run: clang   -E -x c   -dM /dev/null # list predefined macros for C
       - run: clang++ -E -x c++ -dM /dev/null # list predefined macros for C++
@@ -283,7 +284,7 @@ jobs:
           test -n "${{ matrix.gcc }}" && jobs="$jobs gcc/debug gcc/release"
           echo "===== parallel jobs: $jobs"
           parallel -kv --lb 'cd build/extra/{} && bash ../../../../misc/testsuite/mimic_ctest.sh' ::: $jobs
-      - name: Run file system test suite
+      - name: Run file system tests
         if: ${{ matrix.testsuite }} # for coreutils readlink
         run: |
           export PATH="$HOMEBREW_PREFIX/opt/coreutils/libexec/gnubin:$PATH"
@@ -615,7 +616,7 @@ jobs:
           jobs="${ZIG_TARGET}${ZIG_PIC}/debug ${ZIG_TARGET}${ZIG_PIC}/release"
           echo "===== parallel jobs: $jobs"
           parallel -kv --lb 'cd build/zig/{} && bash ../../../../misc/testsuite/mimic_ctest.sh' ::: $jobs
-      - name: Run file system test suite
+      - name: Run file system tests
         if: ${{ matrix.zig_target == 'i386-linux-musl' || matrix.zig_target == 'x86_64-linux-musl' || matrix.zig_target == 'x86_64-linux-gnu.2.3.4' }}
         run: |
           apk add coreutils sudo

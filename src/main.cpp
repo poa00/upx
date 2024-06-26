@@ -1,4 +1,4 @@
-/* main.cpp --
+/* main.cpp -- main entry
 
    This file is part of the UPX executable compressor.
 
