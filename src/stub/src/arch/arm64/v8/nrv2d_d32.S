@@ -82,7 +82,7 @@ ucl_nrv2d_decompress_32: .globl ucl_nrv2d_decompress_32  // ARM mode
    Actual decompressed length is stored through plen_dst.
    For SAFE mode: at call, *plen_dst must be allowed length of output buffer.
 */
-        PUSH3(x2,x3, lr)
+        PUSH3(x2,x3, lr)  // MATCH_93
 #define sp_DST0 0  /* stack offset of original dst */
         add srclim,src,len,uxtw  // srclim= eof_src;
 #if 1==SAFE  /*{*/
@@ -95,7 +95,7 @@ ucl_nrv2d_decompress_32: .globl ucl_nrv2d_decompress_32  // ARM mode
 
 #if defined(WINDOWS_BACK) || !defined(DAISY_CHAIN)  //{
 eof_n2d:
-        POP2(x3,x4)  // r3= orig_dst; r4= plen_dst
+        POP2(x3,x4)  // MATCH_93  r3= orig_dst; r4= plen_dst
         SUB2(src,srclim)  // 0 if actual src length equals expected length
         SUB2(dst,x3)  // actual dst length
         str dstw,[x4]
@@ -108,7 +108,7 @@ eof_n2d:
 #endif
 
         mov x0,x5  // result value
-        POP1(lr)
+        POP1(lr)  // MATCH_93
         ret
 #endif  // WINDOWS_BACK || ! DAISY_CHAIN }
 

@@ -97,10 +97,11 @@ decompress:  // (src *, cpr_len, dst *, &dstlen);
         src .req x0
         dst .req x2
         dstw .req w2
+
   .globl eof
-eof_nrv: // .globl eof_nrv .type eof_nrv,%function
-eof_n2e: // .globl eof_n2e .type eof_n2e,%function
-eof_n2d: // .globl eof_n2d .type eof_n2d,%function
+
+// sync_cache is done in tail of f_expand, after possible unfilter
+// NYI: eof_n2b, eof_n2d, eof_n2e should be unified.
 eof_n2b: // .globl eof_n2b .type eof_n2b,%function
 eof:  // MATCH_90  end of a compressed extent; need sync_cache after unfilter
         ldr x3,[sp],#NBPW  // &input_eof
@@ -111,6 +112,24 @@ eof:  // MATCH_90  end of a compressed extent; need sync_cache after unfilter
         str dstw,[x1]  // actual length used at dst  XXX: 4GB
         ldr lr,[sp],#NBPW
         ret
+
+
+// WINDOWS_BACK compatibility seems to be broken
+// if POP3 replaces POP2+POP1 (MATCH_92, MATCH_91)
+srclim .req x7
+eof_n2d: // .globl eof_n2d
+eof_n2e: // .globl eof_n2e
+        POP2(x3,x4)  // MATCH_92  r3= orig_dst; r4= plen_dst
+        SUB2(src,srclim)  // 0 if actual src length equals expected length
+        SUB2(dst,x3)  // actual dst length
+        str dstw,[x4]
+        POP1(lr)  // MATCH_91
+        ret
+
+    .unreq src
+    .unreq dst
+    .unreq dstw
+    .unreq srclim
 
 eof_lzma: .globl elf_lzma
         mov sp,fp
@@ -123,9 +142,6 @@ eof_lzma: .globl elf_lzma
 
         mov x0,x5  // result value
         ret
-
-    .unreq src
-    .unreq dst
 
 #define M_NRV2B_LE32    2
 #define M_NRV2B_8    3
