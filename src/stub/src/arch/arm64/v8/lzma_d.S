@@ -52,8 +52,8 @@ t0   .req w7
 t1   .req w8
 t1x  .req x8
 
-        PUSH4(x2,x3, fp,lr)  // dst,ldst, fp,lr
-        mov fp,sp
+        PUSH4(x2,x3, fp,lr)  // MATCH_94  dst,ldst, fp,lr
+        mov fp,sp  // we use alloca (inlined and zeroed)
 
 #define LZMA_BASE_SIZE 1846
 #define LZMA_LIT_SIZE   768
@@ -106,12 +106,12 @@ State= 0
         and  t0,t0,#0xf  // lib_context_bits
         strb t0,[a0,#0]
         bl ClangLzmaDecode  // the call
+        mov sp,fp  // undo inlined alloca
 
-#ifndef DAISY_CHAIN  //{
+#if defined(WINDOWS_BACK) || !defined(DAISY_CHAIN)  //{
 eof_lzma:
-        mov sp,fp
         mov x5,x0  // save result value
-        POP4(x0,x1, fp,lr)  // x0= orig_dst; x1= plen_dst
+        POP4(x0,x1, fp,lr)  // MATCH_94  x0= orig_dst; x1= plen_dst
         ldr x1,[x1]  // outSizeProcessed
 
         add x1,x1,x0  // last
@@ -119,6 +119,8 @@ eof_lzma:
 
         mov x0,x5  // result value
         ret
+#else  //}{
+        b eof_lzma
 #endif  //}
 
 #undef t0
@@ -129,7 +131,6 @@ eof_lzma:
 #undef ldst
 #undef meth
 
-ClangLzmaDecode:  // entry to C-lang LzmaDecode in next section
     .unreq src
     .unreq lsrc
     .unreq dst
@@ -146,6 +147,7 @@ ClangLzmaDecode:  // entry to C-lang LzmaDecode in next section
     .unreq a5
     .unreq a6
 
+ClangLzmaDecode:  // entry to C-lang LzmaDecode in next section
   section LZMA_DEC20
 #include "lzma_d_cf.S"
 
@@ -158,7 +160,7 @@ ClangLzmaDecode:  // entry to C-lang LzmaDecode in next section
 #endif  /*}*/
 
   section LZMA_DEC30
-not_lzma:
+not_lzma:  // fall into daisy chain
 
 // vi:ts=8:et
 

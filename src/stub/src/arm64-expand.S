@@ -52,7 +52,7 @@ f_expand: .globl f_expand // f_expand(b_info *, dst, &dstlen)
 fx_src    .req x0
 fx_dst    .req x1
 fx_dstlen .req x2
-    PUSH4(fx_src,fx_dst,fx_dstlen,lr)  // params to unfilter and sync_cache
+    PUSH4(fx_src,fx_dst,fx_dstlen,lr)  // MATCH_95 params to unfilter and sync_cache
 
 // Input to de-compressor:
 xsrc    .req x0
@@ -68,19 +68,19 @@ methb   .req w4
     call decompress
     mov x3,x0  // save retval
 
-    POP4(x2,x0,x1,lr)  // fx_src,fx_dst,fx_dstlen,lr
+    POP4(x2,x0,x1,lr)  // MATCH_95  fx_src,fx_dst,fx_dstlen,lr
     ldr x1,[x1]  // actual length used by decompressor
-    PUSH3(x0,x1,x3)  // params for sync_cache
+    PUSH3(x0,x1,x3)  // MATCH_96  params for sync_cache
     ldrb w3,[x2,#b_ftid]
     ldrb w2,[x2,#b_cto8]
     cbz w3,no_unf
 #include "arch/arm64/v8/bxx.S"  // unfilter code; args in registers, fall-through return
 no_unf:
 
-    POP2(x0,x1)  // dst, len
+    POP2(x0,x1)  // MATCH_96  dst, len
     add x1,x1,x0  // lo, hi
     sync_cache  // in macros.S
-    POP1(x0)  // retval from decompress
+    POP1(x0)  // MATCH_96  retval from decompress
     ret
     .unreq fx_src
     .unreq fx_dst
@@ -131,16 +131,8 @@ eof_n2e: // .globl eof_n2e
     .unreq dstw
     .unreq srclim
 
-eof_lzma: .globl elf_lzma
-        mov sp,fp
-        mov x5,x0  // save result value
-        POP4(x0,x1, fp,lr)  // x0= orig_dst; x1= plen_dst
-        ldr x1,[x1]  // outSizeProcessed
-
-        add x1,x1,x0  // last
-        sync_cache  // x0= lo; x1= hi; uses x2-x4
-
-        mov x0,x5  // result value
+eof_lzma: .globl eof_lzma
+        POP4(x2,x3, fp,lr)  // MATCH_94  x2= orig_dst; x3= plen_dst
         ret
 
 #define M_NRV2B_LE32    2

@@ -57,9 +57,10 @@ EXP_HEAD        0x0000000000000000      0x104
  EXP_HEAD       0x0000000000000000      0x104 tmp/arm64-expand.o
                 0x0000000000000000                f_expand
 
-EXP_TAIL        0x0000000000000000       0xc0
- EXP_TAIL       0x0000000000000000       0xc0 tmp/arm64-expand.o
+EXP_TAIL        0x0000000000000000       0x44
+ EXP_TAIL       0x0000000000000000       0x44 tmp/arm64-expand.o
                 0x0000000000000000                eof
+                0x0000000000000038                eof_lzma
 
 NRV2E           0x0000000000000000       0xf4
  NRV2E          0x0000000000000000       0xf4 tmp/arm64-expand.o
@@ -73,8 +74,8 @@ NRV2B           0x0000000000000000       0xbc
  NRV2B          0x0000000000000000       0xbc tmp/arm64-expand.o
                 0x0000000000000000                ucl_nrv2b_decompress_32
 
-LZMA_ELF00      0x0000000000000000       0x84
- LZMA_ELF00     0x0000000000000000       0x84 tmp/arm64-expand.o
+LZMA_ELF00      0x0000000000000000       0x8c
+ LZMA_ELF00     0x0000000000000000       0x8c tmp/arm64-expand.o
 
 LZMA_DEC20      0x0000000000000000      0x968
  LZMA_DEC20     0x0000000000000000      0x968 tmp/arm64-expand.o
