@@ -2198,10 +2198,8 @@ PackLinuxElf32::invert_pt_dynamic(Elf32_Dyn const *dynp, u32_t headway)
             &&  dt_table[d_tag]
             &&    get_te32(&dynp->d_val)
                != get_te32(&dynp0[-1+ dt_table[d_tag]].d_val)) {
-                char msg[50]; snprintf(msg, sizeof(msg),
-                    "duplicate DT_%#x: [%#x] [%#x]",
+                throwCantPack("duplicate DT_%#x: [%#x] [%#x]",
                     (unsigned)d_tag, -1+ dt_table[d_tag], ndx);
-                throwCantPack(msg);
             }
             dt_table[d_tag] = 1+ ndx;
         }
@@ -2230,9 +2228,7 @@ PackLinuxElf32::invert_pt_dynamic(Elf32_Dyn const *dynp, u32_t headway)
         // last string in table must have terminating NUL
     ||  '\0' != ((char *)file_image.getVoidPtr())[-1+ strtab_max + strtab_beg]
     ) {
-        char msg[50]; snprintf(msg, sizeof(msg),
-            "bad DT_STRSZ %#x", strtab_max);
-        throwCantPack(msg);
+        throwCantPack("bad DT_STRSZ %#x", strtab_max);
     }
 
     // Find end of DT_SYMTAB
@@ -2251,9 +2247,7 @@ PackLinuxElf32::invert_pt_dynamic(Elf32_Dyn const *dynp, u32_t headway)
     if (v_hsh && file_image) {
         hashtab = (unsigned const *)elf_find_dynamic(Elf32_Dyn::DT_HASH);
         if (!hashtab) {
-            char msg[40]; snprintf(msg, sizeof(msg),
-               "bad DT_HASH %#x", v_hsh);
-            throwCantPack(msg);
+            throwCantPack("bad DT_HASH %#x", v_hsh);
         }
         // Find end of DT_HASH
         hashend = (unsigned const *)(void const *)(elf_find_table_size(
@@ -2264,19 +2258,15 @@ PackLinuxElf32::invert_pt_dynamic(Elf32_Dyn const *dynp, u32_t headway)
         unsigned const *const chains = &buckets[nbucket]; (void)chains;
         if ((unsigned)(file_size - ((char const *)buckets - (char const *)(void const *)file_image))
                 <= sizeof(unsigned)*nbucket ) {
-            char msg[80]; snprintf(msg, sizeof(msg),
-                "bad nbucket %#x\n", nbucket);
-            throwCantPack(msg);
+            throwCantPack("bad nbucket %#x\n", nbucket);
         }
 
         if ((unsigned)(hashend - buckets) < nbucket
         || !v_sym || (unsigned)file_size <= v_sym
         || ((v_hsh < v_sym) && (v_sym - v_hsh) < sizeof(*buckets)*(2+ nbucket))
         ) {
-            char msg[80]; snprintf(msg, sizeof(msg),
-                "bad DT_HASH nbucket=%#x  len=%#x",
+            throwCantPack("bad DT_HASH nbucket=%#x  len=%#x",
                 nbucket, (v_sym - v_hsh));
-            throwCantPack(msg);
         }
         unsigned chmax = 0;
         for (unsigned j= 0; j < nbucket; ++j) {
@@ -2287,10 +2277,8 @@ PackLinuxElf32::invert_pt_dynamic(Elf32_Dyn const *dynp, u32_t headway)
         }
         if ((v_hsh < v_sym) && (v_sym - v_hsh) <
                 (sizeof(*buckets)*(2+ nbucket) + sizeof(*chains)*(1+ chmax))) {
-            char msg[80]; snprintf(msg, sizeof(msg),
-                "bad DT_HASH nbucket=%#x  len=%#x",
+            throwCantPack("bad DT_HASH nbucket=%#x  len=%#x",
                 nbucket, (v_sym - v_hsh));
-            throwCantPack(msg);
         }
     }
     unsigned const v_gsh = elf_unsigned_dynamic(Elf32_Dyn::DT_GNU_HASH);
@@ -2298,9 +2286,7 @@ PackLinuxElf32::invert_pt_dynamic(Elf32_Dyn const *dynp, u32_t headway)
         // Not similar to DT_HASH because DT_GNU_HASH is not small (0x6ffffef5).
         gashtab = (unsigned const *)elf_find_dynamic(Elf32_Dyn::DT_GNU_HASH);
         if (!gashtab) {
-            char msg[40]; snprintf(msg, sizeof(msg),
-               "bad DT_GNU_HASH %#x", v_gsh);
-            throwCantPack(msg);
+            throwCantPack("bad DT_GNU_HASH %#x", v_gsh);
         }
         gashend = (unsigned const *)(void const *)(elf_find_table_size(
             Elf32_Dyn::DT_GNU_HASH, Elf32_Shdr::SHT_GNU_HASH) + (char const *)gashtab);
@@ -2314,9 +2300,7 @@ PackLinuxElf32::invert_pt_dynamic(Elf32_Dyn const *dynp, u32_t headway)
         if (!n_bucket || (1u<<31) <= n_bucket  /* fie on fuzzers */
         || (unsigned)(gashend - buckets) < n_bucket
         || (file_size + file_image) <= (void const *)hasharr) {
-            char msg[80]; snprintf(msg, sizeof(msg),
-                "bad n_bucket %#x\n", n_bucket);
-            throwCantPack(msg);
+            throwCantPack("bad n_bucket %#x\n", n_bucket);
         }
         // It would be better to detect zeroes shifted into low 5 bits of:
         //    (037 & (hash_32 >> gnu_shift))
@@ -2332,10 +2316,8 @@ PackLinuxElf32::invert_pt_dynamic(Elf32_Dyn const *dynp, u32_t headway)
             unsigned bj = get_te32(&buckets[j]);
             if (bj) {
                 if (bj < symbias) {
-                    char msg[90]; snprintf(msg, sizeof(msg),
-                            "bad DT_GNU_HASH bucket[%d] < symbias{%#x}\n",
-                            bj, symbias);
-                    throwCantPack(msg);
+                    throwCantPack("bad DT_GNU_HASH bucket[%d] < symbias{%#x}\n",
+                        bj, symbias);
                 }
                 if (bmax < bj) {
                     bmax = bj;
@@ -2348,12 +2330,13 @@ PackLinuxElf32::invert_pt_dynamic(Elf32_Dyn const *dynp, u32_t headway)
             // But then the DT_GNU_HASH symbol lookup algorithm always fails?
             // https://github.com/upx/upx/issues/525
         } else
-        if ((1+ bmax) < symbias) {
-            char msg[90]; snprintf(msg, sizeof(msg),
-                    "bad DT_GNU_HASH (1+ max_bucket)=%#x < symbias=%#x", 1+ bmax, symbias);
-            throwCantPack(msg);
+        if (bmax) {
+            if ((1+ bmax) < symbias) {
+                throwCantPack("bad DT_GNU_HASH (1+ max_bucket)=%#x < symbias=%#x",
+                    1+ bmax, symbias);
+            }
+            bmax -= symbias;
         }
-        bmax -= symbias;
 
         unsigned r = 0;
         if (!n_bucket || !n_bitmask || !v_sym
@@ -8109,19 +8092,16 @@ PackLinuxElf64::invert_pt_dynamic(Elf64_Dyn const *dynp, upx_uint64_t headway)
         }
         upx_uint64_t const d_tag = get_te64(&dynp->d_tag);
         if (d_tag>>32) { // outrageous
-            char msg[50]; snprintf(msg, sizeof(msg),
-                "bad Elf64_Dyn[%d].d_tag %#lx", ndx, (long unsigned)d_tag);
-            throwCantPack(msg);
+            throwCantPack("bad Elf64_Dyn[%d].d_tag %#lx",
+                ndx, (long unsigned)d_tag);
         }
         if (d_tag < DT_NUM) {
             if (Elf64_Dyn::DT_NEEDED != d_tag
             &&  dt_table[d_tag]
             &&    get_te64(&dynp->d_val)
                != get_te64(&dynp0[-1+ dt_table[d_tag]].d_val)) {
-                char msg[50]; snprintf(msg, sizeof(msg),
-                    "duplicate DT_%#x: [%#x] [%#x]",
+                throwCantPack("duplicate DT_%#x: [%#x] [%#x]",
                     (unsigned)d_tag, -1+ dt_table[d_tag], ndx);
-                throwCantPack(msg);
             }
             dt_table[d_tag] = 1+ ndx;
         }
@@ -8150,9 +8130,7 @@ PackLinuxElf64::invert_pt_dynamic(Elf64_Dyn const *dynp, upx_uint64_t headway)
         // last string in table must have terminating NUL
     ||  '\0' != ((char *)file_image.getVoidPtr())[-1+ strtab_max + strtab_beg]
     ) {
-        char msg[50]; snprintf(msg, sizeof(msg),
-            "bad DT_STRSZ %#x", strtab_max);
-        throwCantPack(msg);
+        throwCantPack("bad DT_STRSZ %#x", strtab_max);
     }
 
     // Find end of DT_SYMTAB
@@ -8172,9 +8150,7 @@ PackLinuxElf64::invert_pt_dynamic(Elf64_Dyn const *dynp, upx_uint64_t headway)
     if (v_hsh && file_image) {
         hashtab = (unsigned const *)elf_find_dynamic(Elf64_Dyn::DT_HASH);
         if (!hashtab) {
-            char msg[40]; snprintf(msg, sizeof(msg),
-               "bad DT_HASH %#x", v_hsh);
-            throwCantPack(msg);
+            throwCantPack("bad DT_HASH %#x", v_hsh);
         }
         // Find end of DT_HASH
         hashend = (unsigned const *)(void const *)(elf_find_table_size(
@@ -8185,19 +8161,15 @@ PackLinuxElf64::invert_pt_dynamic(Elf64_Dyn const *dynp, upx_uint64_t headway)
         unsigned const *const chains = &buckets[nbucket]; (void)chains;
         if ((unsigned)(file_size - ((char const *)buckets - (char const *)(void const *)file_image))
                 <= sizeof(unsigned)*nbucket ) {
-            char msg[80]; snprintf(msg, sizeof(msg),
-                "bad nbucket %#x\n", nbucket);
-            throwCantPack(msg);
+            throwCantPack("bad nbucket %#x\n", nbucket);
         }
 
         if ((unsigned)(hashend - buckets) < nbucket
         || !v_sym || file_size_u <= v_sym
         || ((v_hsh < v_sym) && (v_sym - v_hsh) < sizeof(*buckets)*(2+ nbucket))
         ) {
-            char msg[80]; snprintf(msg, sizeof(msg),
-                "bad DT_HASH nbucket=%#x  len=%#x",
+            throwCantPack("bad DT_HASH nbucket=%#x  len=%#x",
                 nbucket, (v_sym - v_hsh));
-            throwCantPack(msg);
         }
         unsigned chmax = 0;
         for (unsigned j= 0; j < nbucket; ++j) {
@@ -8208,10 +8180,8 @@ PackLinuxElf64::invert_pt_dynamic(Elf64_Dyn const *dynp, upx_uint64_t headway)
         }
         if ((v_hsh < v_sym) && (v_sym - v_hsh) <
                 (sizeof(*buckets)*(2+ nbucket) + sizeof(*chains)*(1+ chmax))) {
-            char msg[80]; snprintf(msg, sizeof(msg),
-                "bad DT_HASH nbucket=%#x  len=%#x",
+            throwCantPack("bad DT_HASH nbucket=%#x  len=%#x",
                 nbucket, (v_sym - v_hsh));
-            throwCantPack(msg);
         }
     }
     unsigned const v_gsh = elf_unsigned_dynamic(Elf64_Dyn::DT_GNU_HASH);
@@ -8219,9 +8189,7 @@ PackLinuxElf64::invert_pt_dynamic(Elf64_Dyn const *dynp, upx_uint64_t headway)
         // Not similar to DT_HASH because DT_GNU_HASH is not small (0x6ffffef5).
         gashtab = (unsigned const *)elf_find_dynamic(Elf64_Dyn::DT_GNU_HASH);
         if (!gashtab) {
-            char msg[40]; snprintf(msg, sizeof(msg),
-               "bad DT_GNU_HASH %#x", v_gsh);
-            throwCantPack(msg);
+            throwCantPack("bad DT_GNU_HASH %#x", v_gsh);
         }
         gashend = (unsigned const *)(void const *)(elf_find_table_size(
             Elf64_Dyn::DT_GNU_HASH, Elf64_Shdr::SHT_GNU_HASH) + (char const *)gashtab);
@@ -8235,9 +8203,7 @@ PackLinuxElf64::invert_pt_dynamic(Elf64_Dyn const *dynp, upx_uint64_t headway)
         if (!n_bucket || (1u<<31) <= n_bucket  /* fie on fuzzers */
         || (unsigned)(gashend - buckets) < n_bucket
         || (file_size + file_image) <= (void const *)hasharr) {
-            char msg[80]; snprintf(msg, sizeof(msg),
-                "bad n_bucket %#x\n", n_bucket);
-            throwCantPack(msg);
+            throwCantPack("bad n_bucket %#x\n", n_bucket);
         }
         // It would be better to detect zeroes shifted into low 6 bits of:
         //    (077 & (hash_32 >> gnu_shift))
@@ -8253,10 +8219,8 @@ PackLinuxElf64::invert_pt_dynamic(Elf64_Dyn const *dynp, upx_uint64_t headway)
             unsigned bj = get_te32(&buckets[j]);
             if (bj) {
                 if (bj < symbias) {
-                    char msg[90]; snprintf(msg, sizeof(msg),
-                            "bad DT_GNU_HASH bucket[%d] < symbias{%#x}\n",
+                    throwCantPack("bad DT_GNU_HASH bucket[%d] < symbias{%#x}\n",
                             bj, symbias);
-                    throwCantPack(msg);
                 }
                 if (bmax < bj) {
                     bmax = bj;
@@ -8269,12 +8233,13 @@ PackLinuxElf64::invert_pt_dynamic(Elf64_Dyn const *dynp, upx_uint64_t headway)
             // But then the DT_GNU_HASH symbol lookup algorithm always fails?
             // https://github.com/upx/upx/issues/525
         } else
-        if ((1+ bmax) < symbias) {
-            char msg[90]; snprintf(msg, sizeof(msg),
-                    "bad DT_GNU_HASH (1+ max_bucket)=%#x < symbias=%#x", 1+ bmax, symbias);
-            throwCantPack(msg);
+        if (bmax) {
+            if ((1+ bmax) < symbias) {
+                throwCantPack("bad DT_GNU_HASH (1+ max_bucket)=%#x < symbias=%#x",
+                    1+ bmax, symbias);
+            }
+            bmax -= symbias;
         }
-        bmax -= symbias;
 
         unsigned r = 0;
         if (!n_bucket || !n_bitmask || !v_sym
@@ -8290,18 +8255,14 @@ PackLinuxElf64::invert_pt_dynamic(Elf64_Dyn const *dynp, upx_uint64_t headway)
                 + sizeof(*hasharr)*(1+ bmax)  // hasharr
             )) )
         ) {
-            char msg[90]; snprintf(msg, sizeof(msg),
-                "bad DT_GNU_HASH n_bucket=%#x  n_bitmask=%#x  len=%#lx  r=%d",
+            throwCantPack("bad DT_GNU_HASH n_bucket=%#x  n_bitmask=%#x  len=%#lx  r=%d",
                 n_bucket, n_bitmask, (long unsigned)(v_sym - v_gsh), r);
-            throwCantPack(msg);
         }
     }
     e_shstrndx = get_te16(&ehdri.e_shstrndx);  // who omitted this?
     if (e_shnum <= e_shstrndx
     &&  !(0==e_shnum && 0==e_shstrndx) ) {
-        char msg[40]; snprintf(msg, sizeof(msg),
-            "bad .e_shstrndx %d >= .e_shnum %d", e_shstrndx, e_shnum);
-        throwCantPack(msg);
+        throwCantPack("bad .e_shstrndx %d >= .e_shnum %d", e_shstrndx, e_shnum);
     }
 }
 
@@ -8374,9 +8335,7 @@ Elf32_Sym const *PackLinuxElf32::elf_lookup(char const *name) const
         if (!n_bitmask
         || (unsigned)(file_size - ((char const *)bitmask - (char const *)(void const *)file_image))
                 <= sizeof(unsigned)*n_bitmask ) {
-            char msg[80]; snprintf(msg, sizeof(msg),
-                "bad n_bitmask %#x\n", n_bitmask);
-            throwCantPack(msg);
+            throwCantPack("bad n_bitmask %#x\n", n_bitmask);
         }
         if (n_bucket) {
             unsigned const h = gnu_hash(name);
@@ -8387,10 +8346,8 @@ Elf32_Sym const *PackLinuxElf32::elf_lookup(char const *name) const
             if (1& (w>>hbit1) & (w>>hbit2)) {
                 unsigned bucket = get_te32(&buckets[h % n_bucket]);
                 if (n_bucket <= bucket) {
-                    char msg[90]; snprintf(msg, sizeof(msg),
-                            "bad DT_GNU_HASH n_bucket{%#x} <= buckets[%d]{%#x}\n",
+                    throwCantPack("bad DT_GNU_HASH n_bucket{%#x} <= buckets[%d]{%#x}\n",
                             n_bucket, h % n_bucket, bucket);
-                    throwCantPack(msg);
                 }
                 if (0!=bucket) {
                     Elf32_Sym const *dsp = &dynsym[bucket];
@@ -8455,16 +8412,12 @@ Elf64_Sym const *PackLinuxElf64::elf_lookup(char const *name) const
             throwCantPack("bad gnu_shift %#x", gnu_shift);
         }
         if ((file_size + file_image) <= (void const *)hasharr) {
-            char msg[80]; snprintf(msg, sizeof(msg),
-                "bad n_bucket %#x\n", n_bucket);
-            throwCantPack(msg);
+            throwCantPack("bad n_bucket %#x\n", n_bucket);
         }
         if (!n_bitmask
         || (unsigned)(file_size - ((char const *)bitmask - (char const *)(void const *)file_image))
                 <= sizeof(unsigned)*n_bitmask ) {
-            char msg[80]; snprintf(msg, sizeof(msg),
-                "bad n_bitmask %#x\n", n_bitmask);
-            throwCantPack(msg);
+            throwCantPack("bad n_bitmask %#x\n", n_bitmask);
         }
         if (n_bucket) { // -rust-musl can have "empty" gashtab
             unsigned const h = gnu_hash(name);
@@ -8479,10 +8432,8 @@ Elf64_Sym const *PackLinuxElf64::elf_lookup(char const *name) const
                     unsigned k;
                     do {
                         if (gashend <= hp) {
-                            char msg[120]; snprintf(msg, sizeof(msg),
-                                "bad gnu_hash[%#tx]  head=%u",
+                            throwCantPack("bad gnu_hash[%#tx]  head=%u",
                                 hp - hasharr, hhead);
-                            throwCantPack(msg);
                         }
                         k = get_te32(hp);
                         if (0==((h ^ k)>>1)) {
