@@ -1712,7 +1712,7 @@ powerpc64le-linux.elf-fold.h : $(srcdir)/src/$$T.lds \
 	    tmp/powerpc64le-linux.elf-main2.s \
 	    src/powerpc64le-expand.S
 	(cd tmp; ln -sf ../src/arch arch)
-# /lib/cpp: process the #define and #include in *.S hand-written assunbler.
+# gcc -E: process the #define and #include in *.S hand-written assunbler.
 # sed: Remove 64-bit calling conventions from already-compiled *.s
 # by deleting .toc, and keeping just the label from:
 #     .section    ".opd","aw"
@@ -1720,7 +1720,7 @@ powerpc64le-linux.elf-fold.h : $(srcdir)/src/$$T.lds \
 #auxv_up:
 #    .quad   .L7L.auxv_up,.TOC.@tocbase
 #    .previous
-	/lib/cpp -DBIG_ENDIAN=0 \
+	$(call tc,gcc) -E -DBIG_ENDIAN=0 \
 		tmp/powerpc64le-linux.elf-fold-2.S \
 	    | > tmp/powerpc64le-linux.elf-fold-3.S \
 	      sed -e '/\.section\s*"\.toc","aw"/d' \
@@ -1768,7 +1768,7 @@ powerpc64-linux.elf-fold.h : $(srcdir)/src/$$T.lds \
 	    tmp/powerpc64-linux.elf-main2.s \
 	    src/powerpc64-expand.S
 	(cd tmp; ln -sf ../src/arch arch)
-# /lib/cpp: process the #define and #include in *.S hand-written assunbler.
+# gcc E: process the #define and #include in *.S hand-written assunbler.
 # sed: Remove 64-bit calling conventions from already-compiled *.s
 # by deleting .toc, and keeping just the label from:
 #     .section    ".opd","aw"
@@ -1776,7 +1776,7 @@ powerpc64-linux.elf-fold.h : $(srcdir)/src/$$T.lds \
 #auxv_up:
 #    .quad   .L7L.auxv_up,.TOC.@tocbase
 #    .previous
-	/lib/cpp -DBIG_ENDIAN=1 -DUSE_TOC=1 \
+	$(call tc,gcc) -E  -DBIG_ENDIAN=1 -DUSE_TOC=1 \
 		tmp/powerpc64-linux.elf-fold-2.S \
 	    | > tmp/powerpc64-linux.elf-fold-3.S \
 	      sed -e '/\.section\s*"\.toc","aw"/d' \
