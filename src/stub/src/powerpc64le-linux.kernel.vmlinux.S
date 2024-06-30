@@ -34,7 +34,7 @@
 #define BIG_ENDIAN 0
 #endif  //}
 
-#include "arch/powerpc/64le/macros.S"
+#include "arch/powerpc/64/macros.S"
 #include "arch/powerpc/64le/ppc_regs.h"
 
 // offsets in struct b_info

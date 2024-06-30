@@ -138,9 +138,9 @@ STUBS += powerpc64le-linux.elf-entry.h
 STUBS += powerpc64le-linux.elf-fold.h
 STUBS += powerpc64le-linux.kernel.vmlinux-head.h
 STUBS += powerpc64le-linux.kernel.vmlinux.h
-STUBS += powerpc64-darwin.dylib-entry.h
-STUBS += powerpc64-darwin.macho-entry.h
-STUBS += powerpc64-darwin.macho-fold.h
+#STUBS += powerpc64-darwin.dylib-entry.h
+#STUBS += powerpc64-darwin.macho-entry.h
+#STUBS += powerpc64-darwin.macho-fold.h
 STUBS += powerpc64-linux.elf-entry.h
 STUBS += powerpc64-linux.elf-fold.h
 #STUBS += powerpc64-linux.kernel.vmlinux-head.h
@@ -388,6 +388,10 @@ amd64-darwin.macho-entry.h : $(srcdir)/src/$$T.S
 	$(call tc,f-embed_objinfo,tmp/$T.bin)
 	$(call tc,bin2h) tmp/$T.bin $@
 
+# multiarch-ld-2.17 -b elf64-x86-64 --no-warn-mismatch --strip-all --oformat binary \
+#     -Map tmp/amd64-darwin.macho-fold.map \
+#     tmp/amd64-darwin.macho-fold.o tmp/amd64-darwin.macho-main.o \
+#     -o tmp/amd64-darwin.macho-fold.bin
 amd64-darwin.macho-fold.h : tmp/$$T.o tmp/amd64-darwin.macho-main.o
 	$(call tc,ld) --no-warn-mismatch --strip-all --oformat binary -Map tmp/$T.map $(filter %.o,$^) -o tmp/$T.bin
 	chmod a-x tmp/$T.bin
@@ -1675,7 +1679,6 @@ tmp/powerpc64-darwin.macho-fold.o : $(srcdir)/src/$$T.S
 # Besides, PowerPC has 31.5 registers (r0 cannot index), which is plenty.
 tmp/powerpc64-darwin.macho-main.o : $(srcdir)/src/$$T.c
 	$(call tc,gcc) -c -O $< -o $@
-	$(call tc,f-objstrip,$@)
 
 
 # /***********************************************************************
@@ -1685,9 +1688,11 @@ tmp/powerpc64-darwin.macho-main.o : $(srcdir)/src/$$T.c
 powerpc64le-linux.elf%.h : tc_list = powerpc64le-linux.elf default
 powerpc64le-linux.elf%.h : tc_bfdname = elf64-powerpcle
 
-tc.powerpc64le-linux.elf.gcc  = powerpc64-linux-gcc-4.9.2 -m64 -mlittle-endian -nostdinc -MMD -MT $@
+tc.powerpc64le-linux.elf.gcc  = powerpc64-linux-gcc-4.9.2 -m64 -mlittle-endian -DBIG_ENDIAN=0 -nostdinc -MMD -MT $@
 tc.powerpc64le-linux.elf.gcc += -fno-exceptions -fno-asynchronous-unwind-tables -fno-stack-protector
 tc.powerpc64le-linux.elf.gcc += -Wall -W -Wcast-align -Wcast-qual -Wstrict-prototypes -Wwrite-strings -Werror
+
+tc.powerpc64le-linux.elf.as  = powerpc64-linux-gcc-4.9.2 -m64 -mlittle-endian -DBIG_ENDIAN=0 -nostdinc -MMD -MT -c $@
 
 tc.powerpc64le-linux.elf.ld      = powerpc64-linux-ld-2.25 -b $(tc_bfdname)
 tc.powerpc64le-linux.elf.objcopy = multiarch-objcopy-2.27 -F $(tc_bfdname)
@@ -1698,29 +1703,53 @@ powerpc64le-linux.elf-entry.h : $(srcdir)/src/$$T.S
 	$(call tc,f-embed_objinfo,tmp/$T.bin)
 	$(call tc,bin2h) tmp/$T.bin $@
 
-powerpc64le-linux.elf-fold.h : tmp/$$T.o tmp/powerpc64le-linux.elf-main.o $(srcdir)/src/$$T.lds
-	$(call tc,ld) --strip-all -T $(srcdir)/src/$T.lds -Map tmp/$T.map $(filter %.o,$^) -o tmp/$T.bin
-	$(call tc,f-objstrip,tmp/$T.bin)
-	$(call tc,sstrip) tmp/$T.bin
+powerpc64le-linux.elf-fold.h : $(srcdir)/src/$$T.lds \
+	    $(srcdir)/src/$$T.S \
+	    tmp/powerpc64le-linux.elf-main2.s \
+	    src/powerpc64le-expand.S
+	cat > tmp/powerpc64le-linux.elf-fold-2.S \
+	    src/powerpc64le-linux.elf-fold.S \
+	    tmp/powerpc64le-linux.elf-main2.s \
+	    src/powerpc64le-expand.S
+	(cd tmp; ln -sf ../src/arch arch)
+# /lib/cpp: process the #define and #include in *.S hand-written assunbler.
+# sed: Remove 64-bit calling conventions from already-compiled *.s
+# by deleting .toc, and keeping just the label from:
+#     .section    ".opd","aw"
+#    .align 3
+#auxv_up:
+#    .quad   .L7L.auxv_up,.TOC.@tocbase
+#    .previous
+	/lib/cpp -DBIG_ENDIAN=0 \
+		tmp/powerpc64le-linux.elf-fold-2.S \
+	    | > tmp/powerpc64le-linux.elf-fold-3.S \
+	      sed -e '/\.section\s*"\.toc","aw"/d' \
+	          -e '/\.section\s*"\.opd","aw"/,/\.previous/{ /:/P ; d }'
+	$(call tc,gcc) -c tmp/powerpc64le-linux.elf-fold-3.S -o tmp/$T.o
+	$(call tc,objdump) -Dr $(tc_objdump_disasm_options) tmp/$T.o > tmp/$@.disasm
+	$(call tc,gpp_mkdep) --mode=c --MMD=$@ --MF=tmp/$T.d $(srcdir)/src/$T.S
+	$(call tc,ld) -r -T $(srcdir)/src/$T.lds -Map tmp/$T.map  -o tmp/$T.bin \
+	     tmp/$T.o
+	$(call tc,f-embed_objinfo_without_xstrip_keep_dot_text,tmp/$T.bin)
+# "unrecognized program segment header size"	$(call tc,sstrip) tmp/$T.bin
 	$(call tc,bin2h) tmp/$T.bin $@
 
-tmp/powerpc64le-linux.elf-fold.o : $(srcdir)/src/$$T.S
-	$(call tc,gcc) -c $< -o $@
-	$(call tc,f-objstrip,$@)
-
-tmp/powerpc64le-linux.elf-main.o : $(srcdir)/src/$$T.c
-	$(call tc,gcc) -c -Os $< -o $@
-	$(call tc,f-objstrip,$@)
-
+tmp/powerpc64le-linux.elf-main2.s: $(srcdir)/src/$$T.c $(srcdir)/src/amd64-linux.elf-main2.c
+	$(call tc,gcc) -S -O $< -o - \
+	    | sed -e '/^\t\.file\t/d' \
+	          -e 's/L[0-9]*/L7&/g' \
+	          -e $$(cat src/dollar-dollar.sed) \
+	          -e 's/	j[ 	][ 	]*$$L/	b $$L/' \
+	          -e 's/	jal[ 	][ 	]*\([^\$$]\)/	bal \1/' \
+		  >$@
 
 powerpc64-linux.elf%.h : tc_list = powerpc64-linux.elf default
 powerpc64-linux.elf%.h : tc_bfdname = elf64-powerpc
 
-tc.powerpc64-linux.elf.gcc  = powerpc64-linux-gcc-4.9.2 -m64 -mbig-endian -nostdinc -MMD -MT $@
+tc.powerpc64-linux.elf.gcc  = powerpc64-linux-gcc-4.9.2 -m64 -mbig-endian -DBIG_ENDIAN=1 -DUSE_TOC=1 -nostdinc -MMD -MT $@
 tc.powerpc64-linux.elf.gcc += -fno-exceptions -fno-asynchronous-unwind-tables -fno-stack-protector
 tc.powerpc64-linux.elf.gcc += -mno-longcall -mno-toc
 tc.powerpc64-linux.elf.gcc += -Wall -W -Wcast-align -Wcast-qual -Wstrict-prototypes -Wwrite-strings -Werror
-
 tc.powerpc64-linux.elf.ld      = powerpc64-linux-ld-2.25 -b $(tc_bfdname)
 tc.powerpc64-linux.elf.objcopy = multiarch-objcopy-2.27 -F $(tc_bfdname)
 tc.powerpc64-linux.elf.objdump = multiarch-objdump-2.27 -b $(tc_bfdname)
@@ -1730,21 +1759,48 @@ powerpc64-linux.elf-entry.h : $(srcdir)/src/$$T.S
 	$(call tc,f-embed_objinfo,tmp/$T.bin)
 	$(call tc,bin2h) tmp/$T.bin $@
 
-powerpc64-linux.elf-fold.h : tmp/$$T.o tmp/powerpc64-linux.elf-main.o $(srcdir)/src/$$T.lds
-	$(call tc,ld) --strip-all -T $(srcdir)/src/$T.lds -Map tmp/$T.map $(filter %.o,$^) -o tmp/$T.bin
-	$(call tc,f-objstrip,tmp/$T.bin)
-	$(call tc,sstrip) tmp/$T.bin
+powerpc64-linux.elf-fold.h : $(srcdir)/src/$$T.lds \
+	    $(srcdir)/src/$$T.S \
+	    tmp/powerpc64-linux.elf-main2.s \
+	    src/powerpc64-expand.S
+	cat > tmp/powerpc64-linux.elf-fold-2.S \
+	    src/powerpc64-linux.elf-fold.S \
+	    tmp/powerpc64-linux.elf-main2.s \
+	    src/powerpc64-expand.S
+	(cd tmp; ln -sf ../src/arch arch)
+# /lib/cpp: process the #define and #include in *.S hand-written assunbler.
+# sed: Remove 64-bit calling conventions from already-compiled *.s
+# by deleting .toc, and keeping just the label from:
+#     .section    ".opd","aw"
+#    .align 3
+#auxv_up:
+#    .quad   .L7L.auxv_up,.TOC.@tocbase
+#    .previous
+	/lib/cpp -DBIG_ENDIAN=1 -DUSE_TOC=1 \
+		tmp/powerpc64-linux.elf-fold-2.S \
+	    | > tmp/powerpc64-linux.elf-fold-3.S \
+	      sed -e '/\.section\s*"\.toc","aw"/d' \
+	          -e '/\.section\s*"\.opd","aw"/,/\.previous/{ /:/P ; d }'
+	$(call tc,gcc) -c tmp/powerpc64-linux.elf-fold-3.S -o tmp/$T.o
+	$(call tc,objdump) -Dr $(tc_objdump_disasm_options) tmp/$T.o > tmp/$@.disasm
+	$(call tc,gpp_mkdep) --mode=c --MMD=$@ --MF=tmp/$T.d $(srcdir)/src/$T.S
+	$(call tc,ld) -r -T $(srcdir)/src/$T.lds -Map tmp/$T.map  -o tmp/$T.bin \
+	     tmp/$T.o
+	$(call tc,f-embed_objinfo_without_xstrip_keep_dot_text,tmp/$T.bin)
+# "unrecognized program segment header size"	$(call tc,sstrip) tmp/$T.bin
 	$(call tc,bin2h) tmp/$T.bin $@
 
-tmp/powerpc64-linux.elf-fold.o : $(srcdir)/src/$$T.S
-	$(call tc,gcc) -c $< -o $@
-	$(call tc,f-objstrip,$@)
+tmp/powerpc64-linux.elf-main2.s: $(srcdir)/src/$$T.c $(srcdir)/src/amd64-linux.elf-main2.c
+	$(call tc,gcc) -S -O $< -o - \
+	    | sed -e '/^\t\.file\t/d' \
+	          -e 's/L[0-9]*/L7&/g' \
+	          -e $$(cat src/dollar-dollar.sed) \
+	          -e 's/	j[ 	][ 	]*$$L/	b $$L/' \
+	          -e 's/	jal[ 	][ 	]*\([^\$$]\)/	bal \1/' \
+		  >$@
 
-tmp/powerpc64-linux.elf-main.o : $(srcdir)/src/$$T.c
-	$(call tc,gcc) -c -Os $< -o $@
-	$(call tc,f-objstrip,$@)
-
-
+# /***********************************************************************
+# // powerpc64le-linux.kernel.vmlinux
 # /***********************************************************************
 # // powerpc64le-linux.kernel.vmlinux
 # // powerpc64le-linux.kernel.vmlinux-head
