@@ -119,8 +119,6 @@ extern void my_bkpt(void *, ...);
 static int dprintf(char const *fmt, ...); // forward
 #endif  /*}*/
 
-extern void my_bkpt(void *, ...);
-
 /*************************************************************************
 // configuration section
 **************************************************************************/

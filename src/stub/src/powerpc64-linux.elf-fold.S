@@ -121,6 +121,27 @@ get_page_mask: .globl get_page_mask
         ld r3,PAGE_MASK - 0b(r3)
         bctr
 
+Pprotect: .globl Pprotect
+        mflr r0; bl 0f; 0: mflr r6; mtlr r0; ld r0,PAGE_MASK - 0b(r6)
+        andc r0,a0,r0  // offset within page
+        sub a0,a0,r0
+        add a1,a1,r0
+        b mprotect
+
+Pmap: .globl Pmap
+        mflr r0; bl 0f; 0: mflr r6; mtlr r0; ld r0,PAGE_MASK - 0b(r6)
+        andc r0,a0,r0  // offset within page
+        sub a0,a0,r0
+        add a1,a1,r0
+        b mmap
+
+Punmap: .globl Punmap
+        mflr r0; bl 0f; 0: mflr r6; mtlr r0; ld r0,PAGE_MASK - 0b(r6)
+        andc r0,a0,r0  // offset within page
+        sub a0,a0,r0
+        add a1,a1,r0
+        b munmap
+
 fold_begin:
 ////    teq r0,r0  // debugging
         mtctr r0  // # words of stuff   FIXME
@@ -264,8 +285,7 @@ sz_auxv= 2*NBPW
 
         ld r0,-NBPW(av_hi)  // &hatch
         mtctr r0
-        ld r0,0(av_hi)  // entry address
-        std r0,SZ_FRAME + (-1+ 31)*NBPW(sp)  // hatch: "movr r12,r31" for musl 1.1.16
+        std r_exp,SZ_FRAME + (-1+ 31)*NBPW(sp)  // hatch: "movr r12,r31" for musl 1.1.16
 
         mr a0,r_ADRU
         mr a1,r_LENU
@@ -310,6 +330,7 @@ sz_auxv= 2*NBPW
         bctr  // goto escape hatch
 
   section SYSCALLS
+    li r0,0x999; teq r0,r0  // detect fall-through into this seciion
 
 SYS_exit=  1
 SYS_fork=  2
@@ -326,11 +347,6 @@ SYS_ftruncate= 93
 SYS_mprotect= 125
 SYS_memfd_create= 360
 
-Pmap: .globl Pmap
-        li r0, 0xfff  // ~PAGE_MASK  (FIXME: probably use 4th arg)
-        and r0,a0,r0
-        sub a0,a0,r0
-        add a1,a1,r0
 mmap: .globl mmap
         clrldi  a4,a4,32  // truncate fd to 32 bits; kernel is picky?
         li 0,SYS_mmap
@@ -341,21 +357,10 @@ sysgo:
 no_fail:
         ret
 
-Pprotect: .globl Pprotect
-mprotect: .globl mprotect
-        li r0, 0xfff  // ~PAGE_MASK  (FIXME: probably use 4th arg)
-        and r0,a0,r0
-        sub a0,a0,r0
-        add a1,a1,r0
-        li r0,SYS_mprotect; 5: b 5f
-
-Punmap: .globl Punmap
-        li r0, 0xfff  // ~PAGE_MASK  (FIXME: probably use 4th arg)
-        and r0,a0,r0
-        sub a0,a0,r0
-        add a1,a1,r0
 munmap: .globl munmap
-        li r0,SYS_munmap;   5: b sysgo
+        li 0,SYS_munmap; 5: b 5f
+mprotect: .globl mprotect
+        li 0,SYS_mprotect; 5: b 5f
 memfd_create: .globl memfd_create
         li r0,SYS_memfd_create; 5: b 5f
 ftruncate: .globl ftruncate

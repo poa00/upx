@@ -1688,7 +1688,7 @@ tmp/powerpc64-darwin.macho-main.o : $(srcdir)/src/$$T.c
 powerpc64le-linux.elf%.h : tc_list = powerpc64le-linux.elf default
 powerpc64le-linux.elf%.h : tc_bfdname = elf64-powerpcle
 
-tc.powerpc64le-linux.elf.gcc  = powerpc64-linux-gcc-4.9.2 -m64 -mlittle-endian -DBIG_ENDIAN=0 -nostdinc -MMD -MT $@
+tc.powerpc64le-linux.elf.gcc  = powerpc64-linux-gcc-4.9.2 -m64 -mlittle-endian -DBIG_ENDIAN=0 -DDAISY_CHAIN=1 -nostdinc -MMD -MT $@
 tc.powerpc64le-linux.elf.gcc += -fno-exceptions -fno-asynchronous-unwind-tables -fno-stack-protector
 tc.powerpc64le-linux.elf.gcc += -Wall -W -Wcast-align -Wcast-qual -Wstrict-prototypes -Wwrite-strings -Werror
 
@@ -1746,7 +1746,7 @@ tmp/powerpc64le-linux.elf-main2.s: $(srcdir)/src/$$T.c $(srcdir)/src/amd64-linux
 powerpc64-linux.elf%.h : tc_list = powerpc64-linux.elf default
 powerpc64-linux.elf%.h : tc_bfdname = elf64-powerpc
 
-tc.powerpc64-linux.elf.gcc  = powerpc64-linux-gcc-4.9.2 -m64 -mbig-endian -DBIG_ENDIAN=1 -DUSE_TOC=1 -nostdinc -MMD -MT $@
+tc.powerpc64-linux.elf.gcc  = powerpc64-linux-gcc-4.9.2 -m64 -mbig-endian -DBIG_ENDIAN=1 -DUSE_TOC=1 -DDAISY_CHAIN=1 -nostdinc -MMD -MT $@
 tc.powerpc64-linux.elf.gcc += -fno-exceptions -fno-asynchronous-unwind-tables -fno-stack-protector
 tc.powerpc64-linux.elf.gcc += -mno-longcall -mno-toc
 tc.powerpc64-linux.elf.gcc += -Wall -W -Wcast-align -Wcast-qual -Wstrict-prototypes -Wwrite-strings -Werror
@@ -1776,7 +1776,7 @@ powerpc64-linux.elf-fold.h : $(srcdir)/src/$$T.lds \
 #auxv_up:
 #    .quad   .L7L.auxv_up,.TOC.@tocbase
 #    .previous
-	$(call tc,gcc) -E  -DBIG_ENDIAN=1 -DUSE_TOC=1 \
+	$(call tc,gcc) -E  -DBIG_ENDIAN=1 -DUSE_TOC=1 -DDAISY_CHAIN=1 \
 		tmp/powerpc64-linux.elf-fold-2.S \
 	    | > tmp/powerpc64-linux.elf-fold-3.S \
 	      sed -e '/\.section\s*"\.toc","aw"/d' \

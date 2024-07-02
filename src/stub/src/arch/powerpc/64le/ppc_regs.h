@@ -34,11 +34,13 @@ r29= 29
 r30= 30
 r31= 31
 
+NBPW= 8  // Number of Bytes Per Word
+
 /* Stack pointer */
 sp= 1
-SZ_FRAME= 6*8 + 8*8  // (sp,cr,lr, tmp.xlc,tmp.ld,save.toc) + spill area for a0-a7
+SZ_FRAME= 6*NBPW + 8*NBPW  // (sp,cr,lr, tmp.xlc,tmp.ld,save.toc) + spill area for a0-a7
 F_TOC=    SZ_FRAME  // where is the fake TOC
-SZ_FRAME= SZ_FRAME + 2*2*8  // space for 2 [short] TOC entries
+SZ_FRAME= SZ_FRAME + 2*2*NBPW  // space for 2 [short] TOC entries
 
 // http://refspecs.linuxfoundation.org/ELF/ppc64/PPC-elf64abi.html#REG
 // r0        Volatile register used in function prologs

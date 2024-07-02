@@ -59,7 +59,7 @@ f_expand: .globl f_expand // f_expand(b_info *, dst, &dstlen)
 #define fx_dst    a1
 #define fx_dstlen a2
     mflr r0
-    PUSH4 fx_src,fx_dst,fx_dstlen,r0  // params to unfilter and sync_cache
+    PUSH4 fx_src,fx_dst,fx_dstlen,r0  // MATCH_80  params to unfilter and sync_cache
 
 // Input to de-compressor:
 #define xsrc    a0
@@ -75,16 +75,16 @@ f_expand: .globl f_expand // f_expand(b_info *, dst, &dstlen)
     call decompress
     movr a3,a0  // save retval
 
-    POP3 a2,a0,a1   // fx_src,fx_dst,fx_dstlen; keep f_expand.retaddr
+    POP3 a2,a0,a1   // MATCH_80 fx_src,fx_dst,fx_dstlen; keep f_expand.retaddr
     ld a1,0(a1)  // actual length used by decompressor
-    PUSH3 a0,a1,a3  // params for sync_cache
+    PUSH3 a0,a1,a3  // MATCH_81  params for sync_cache
     lbz a3,b_ftid(a2)
     lbz a2,b_cto8(a2)
     cmpi cr0,a3,0; beq no_unf
     call unfilter
 no_unf:
 
-    POP2 a0,a1   // dst, len
+    POP2 a0,a1   // MATCH_81  dst, len
     add a1,a1,a0  // lo, hi
 
 CACHELINE=32
@@ -98,7 +98,7 @@ cfl_nrv:
         sync   // wait for all memory operations to finish
         isync  // discard prefetched instructions (if any)
 cfl_ret:
-    POP2 a0,r0   // retval, retaddr from f_expand
+    POP2 a0,r0   // MATCH_80, MATCH_81  retval, retaddr from f_expand
     mtlr r0
     ret
 //    .unreq fx_src

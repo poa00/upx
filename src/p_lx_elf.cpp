@@ -2349,7 +2349,7 @@ PackLinuxElf32::invert_pt_dynamic(Elf32_Dyn const *dynp, u32_t headway)
         || (r=6, ((v_gsh < v_sym) && (v_sym - v_gsh) < (sizeof(unsigned)*4  // headers
                 + sizeof(*bitmask)*n_bitmask  // bitmask
                 + sizeof(*buckets)*n_bucket  // buckets
-                + sizeof(*hasharr)*(1+ bmax)  // hasharr
+                + sizeof(*hasharr)*(!bmax ? 0 : (1+ bmax))  // hasharr
             )) )
         ) {
             char msg[90]; snprintf(msg, sizeof(msg),
@@ -8252,7 +8252,7 @@ PackLinuxElf64::invert_pt_dynamic(Elf64_Dyn const *dynp, upx_uint64_t headway)
         || (r=6, ((v_gsh < v_sym) && (v_sym - v_gsh) < (sizeof(unsigned)*4  // headers
                 + sizeof(*bitmask)*n_bitmask  // bitmask
                 + sizeof(*buckets)*n_bucket  // buckets
-                + sizeof(*hasharr)*(1+ bmax)  // hasharr
+                + sizeof(*hasharr)*(!bmax ? 0 : (1+ bmax))  // hasharr
             )) )
         ) {
             throwCantPack("bad DT_GNU_HASH n_bucket=%#x  n_bitmask=%#x  len=%#lx  r=%d",
@@ -8328,39 +8328,43 @@ Elf32_Sym const *PackLinuxElf32::elf_lookup(char const *name) const
             throwCantPack("bad gnu_shift %#x", gnu_shift);
         }
         if ((file_size + file_image) <= (void const *)hasharr) {
-            char msg[80]; snprintf(msg, sizeof(msg),
-                "bad n_bucket %#x\n", n_bucket);
-            throwCantPack(msg);
+            throwCantPack("bad n_bucket %#x\n", n_bucket);
         }
         if (!n_bitmask
         || (unsigned)(file_size - ((char const *)bitmask - (char const *)(void const *)file_image))
                 <= sizeof(unsigned)*n_bitmask ) {
             throwCantPack("bad n_bitmask %#x\n", n_bitmask);
         }
-        if (n_bucket) {
+        if (n_bucket) { // -rust-musl can have "empty" hashtab
             unsigned const h = gnu_hash(name);
             unsigned const hbit1 = 037& h;
             unsigned const hbit2 = 037& (h>>gnu_shift);
             unsigned const w = get_te32(&bitmask[(n_bitmask -1) & (h>>5)]);
 
             if (1& (w>>hbit1) & (w>>hbit2)) {
-                unsigned bucket = get_te32(&buckets[h % n_bucket]);
-                if (n_bucket <= bucket) {
-                    throwCantPack("bad DT_GNU_HASH n_bucket{%#x} <= buckets[%d]{%#x}\n",
-                            n_bucket, h % n_bucket, bucket);
+                unsigned const hhead = get_te32(&buckets[h % n_bucket]);
+                if (n_bucket <= (hhead - symbias)) {
+                    throwCantPack("bad DT_GNU_HASH n_bucket{%#x} <= buckets[%d]{%#x} - symbias{%#x}\n",
+                            n_bucket, h % n_bucket, hhead, symbias);
                 }
-                if (0!=bucket) {
-                    Elf32_Sym const *dsp = &dynsym[bucket];
-                    unsigned const *hp = &hasharr[bucket - symbias];
-                    do if (0==((h ^ get_te32(hp))>>1)) {
-                        unsigned st_name = get_te32(&dsp->st_name);
-                        char const *const p = get_str_name(st_name, (unsigned)-1);
-                        if (0==strcmp(name, p)) {
-                            return dsp;
+                if (hhead) {
+                    Elf32_Sym const *dsp = &dynsym[hhead];
+                    unsigned const *hp = &hasharr[hhead - symbias];
+                    unsigned k;
+                    do {
+                        if (gashend <= hp) {
+                            throwCantPack("bad DT_GNU_HASH[%#x]  head=%u",
+                                (unsigned)(hp - hasharr), hhead);
                         }
-                    } while (++dsp,
-                        ((char const *)hp < (char const *)(file_size + file_image))
-                        &&  0==(1u& get_te32(hp++)));
+                        k = get_te32(hp);
+                        if (0==((h ^ k)>>1)) {
+                            unsigned const st_name = get_te32(&dsp->st_name);
+                            char const *const p = get_str_name(st_name, (unsigned)-1);
+                            if (0==strcmp(name, p)) {
+                                return dsp;
+                            }
+                        }
+                    } while (++dsp, ++hp, 0==(1u& k));
                 }
             }
         }
