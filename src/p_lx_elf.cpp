@@ -2251,7 +2251,7 @@ PackLinuxElf32::invert_pt_dynamic(Elf32_Dyn const *dynp, u32_t headway)
         || (r=6, ((v_gsh < v_sym) && (v_sym - v_gsh) < (sizeof(unsigned)*4  // headers
                 + sizeof(*bitmask)*n_bitmask  // bitmask
                 + sizeof(*buckets)*n_bucket  // buckets
-                + sizeof(*hasharr)*(1+ bmax)  // hasharr
+                + sizeof(*hasharr)*(!bmax ? 0 : (1+ bmax))  // hasharr
             )) )
         ) {
             char msg[90]; snprintf(msg, sizeof(msg),
@@ -8112,7 +8112,7 @@ PackLinuxElf64::invert_pt_dynamic(Elf64_Dyn const *dynp, upx_uint64_t headway)
         || (r=6, ((v_gsh < v_sym) && (v_sym - v_gsh) < (sizeof(unsigned)*4  // headers
                 + sizeof(*bitmask)*n_bitmask  // bitmask
                 + sizeof(*buckets)*n_bucket  // buckets
-                + sizeof(*hasharr)*(1+ bmax)  // hasharr
+                + sizeof(*hasharr)*(!bmax ? 0 : (1+ bmax))  // hasharr
             )) )
         ) {
             throwCantPack("bad DT_GNU_HASH n_bucket=%#x  n_bitmask=%#x  len=%#lx  r=%d",
