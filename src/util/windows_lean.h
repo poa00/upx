@@ -49,4 +49,19 @@
 #define timeval win32_timeval /* struct timeval already in <sys/time.h> */
 #endif
 
+#if defined(__CYGWIN__) && defined(_WIN32)
+#error "unexpected _WIN32"
+#endif
+#if defined(__CYGWIN__) && defined(_WIN64)
+#error "unexpected _WIN64"
+#endif
+
 #include <windows.h>
+
+#if defined(__CYGWIN__) && defined(_WIN32)
+#error "unexpected _WIN32"
+#endif
+#if defined(__CYGWIN__) && defined(_WIN64)
+// #error "unexpected _WIN64"
+#undef _WIN64
+#endif

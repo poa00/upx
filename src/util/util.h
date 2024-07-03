@@ -93,9 +93,17 @@ T *NewArray(upx_uint64_t n) may_throw {
 // ptr util
 **************************************************************************/
 
-// TODO later: CHERI; see cheri_address_get()
+#if defined(__CHERI__) && defined(__CHERI_PURE_CAPABILITY__)
+forceinline upx_ptraddr_t ptr_get_address(const void *p) noexcept {
+    return __builtin_cheri_address_get(p);
+}
+forceinline upx_ptraddr_t ptr_get_address(upx_uintptr_t p) noexcept {
+    return __builtin_cheri_address_get(p);
+}
+#else
 forceinline upx_ptraddr_t ptr_get_address(const void *p) noexcept { return (upx_uintptr_t) p; }
 forceinline upx_ptraddr_t ptr_get_address(upx_uintptr_t p) noexcept { return p; }
+#endif
 
 // ptrdiff_t with nullptr checks and asserted size; will throw on failure
 // NOTE: returns size_in_bytes, not number of elements!
@@ -138,10 +146,15 @@ forceinline void ptr_check_no_overlap(const void *a, size_t a_size, const void *
 // - this should play nice with static analyzers like clang-tidy etc.
 // NOTE: this is clearly UB (Undefined Behaviour), and stricter compilers or
 //   architectures may need a more advanced/costly implementation in the future
-// TODO later: CHERI
 template <class T>
 inline void ptr_invalidate_and_poison(T *(&ptr)) noexcept {
-    ptr = (T *) (void *) 251; // 0x000000fb // NOLINT(performance-no-int-to-ptr)
+#if defined(__CHERI__) && defined(__CHERI_PURE_CAPABILITY__)
+    // TODO later: examine __builtin_cheri_bounds_set()
+    ptr = upx::ptr_static_cast<T *>(&ptr); // FIXME: HACK: point to address of self
+#else
+    // pretend there is some memory-mapped I/O at address 0x00000200
+    ptr = (T *) (void *) 512; // NOLINT(performance-no-int-to-ptr)
+#endif
 }
 
 /*************************************************************************
@@ -152,7 +165,7 @@ noinline void *upx_calloc(size_t n, size_t element_size) may_throw;
 
 noinline const char *upx_getenv(const char *envvar) noexcept;
 
-void upx_memswap(void *a, void *b, size_t bytes) noexcept;
+noinline void upx_memswap(void *a, void *b, size_t bytes) noexcept;
 
 noinline void upx_rand_init(void) noexcept;
 noinline int upx_rand(void) noexcept;
@@ -174,7 +187,7 @@ void upx_std_stable_sort(void *array, size_t n, upx_compare_func_t compare);
 #define upx_qsort(a, n, element_size, compare)                                                     \
     upx_std_stable_sort<(element_size)>((a), (n), (compare))
 #else
-// use libc qsort(); good enough for our use cases
+                              // use libc qsort(); good enough for our use cases
 #define upx_qsort ::qsort
 #endif
 

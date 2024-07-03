@@ -204,8 +204,11 @@ static_assert(!upx::is_same_any_v<int, char, long>);
 
 static_assert(upx::is_same_any_v<ptrdiff_t, int, long, long long>);
 static_assert(upx::is_same_any_v<size_t, unsigned, unsigned long, unsigned long long>);
-// TODO later: CHERI
+#if defined(__CHERI__) && defined(__CHERI_PURE_CAPABILITY__)
+static_assert(!upx::is_same_any_v<upx_uintptr_t, unsigned, unsigned long, unsigned long long>);
+#else
 static_assert(upx::is_same_any_v<upx_uintptr_t, unsigned, unsigned long, unsigned long long>);
+#endif
 
 /*************************************************************************
 // <bit>
@@ -241,10 +244,12 @@ static_assert(upx::min<upx_int8_t>(1, 2) == 1);
 static_assert(upx::min<upx_int16_t>(1, 2) == 1);
 static_assert(upx::min<upx_int32_t>(1, 2) == 1);
 static_assert(upx::min<upx_int64_t>(1, 2) == 1);
+static_assert(upx::min<intmax_t>(1, 2) == 1);
 static_assert(upx::max<upx_int8_t>(1, 2) == 2);
 static_assert(upx::max<upx_int16_t>(1, 2) == 2);
 static_assert(upx::max<upx_int32_t>(1, 2) == 2);
 static_assert(upx::max<upx_int64_t>(1, 2) == 2);
+static_assert(upx::max<intmax_t>(1, 2) == 2);
 
 static_assert(upx::min(1, 2) == 1);
 static_assert(upx::min(1l, 2l) == 1);
@@ -257,10 +262,12 @@ static_assert(upx::umin<upx_uint8_t>(1, 2) == 1);
 static_assert(upx::umin<upx_uint16_t>(1, 2) == 1);
 static_assert(upx::umin<upx_uint32_t>(1, 2) == 1);
 static_assert(upx::umin<upx_uint64_t>(1, 2) == 1);
+static_assert(upx::umin<uintmax_t>(1, 2) == 1);
 static_assert(upx::umax<upx_uint8_t>(1, 2) == 2);
 static_assert(upx::umax<upx_uint16_t>(1, 2) == 2);
 static_assert(upx::umax<upx_uint32_t>(1, 2) == 2);
 static_assert(upx::umax<upx_uint64_t>(1, 2) == 2);
+static_assert(upx::umax<uintmax_t>(1, 2) == 2);
 
 static_assert(upx::umin(1u, 2u) == 1);
 static_assert(upx::umin(1ul, 2ul) == 1);

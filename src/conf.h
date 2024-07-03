@@ -154,9 +154,13 @@ typedef acc_uint32_t upx_uint32_t;
 typedef acc_int64_t upx_int64_t;
 typedef acc_uint64_t upx_uint64_t;
 typedef acc_uintptr_t upx_uintptr_t;
-// see CHERI ptraddr_t / vaddr_t
-typedef acc_uintptr_t upx_ptraddr_t;
-typedef acc_intptr_t upx_sptraddr_t;
+#if defined(__PTRADDR_TYPE__) // CHERI
+typedef __PTRADDR_TYPE__ upx_ptraddr_t;
+#else
+typedef upx_uintptr_t upx_ptraddr_t;
+#endif
+typedef std::make_unsigned_t<ptrdiff_t> upx_uptrdiff_t; // unsigned ptrdiff_t
+typedef std::make_signed_t<size_t> upx_ssize_t;         // signed size_t
 
 // UPX convention: use "byte" when dealing with data; use "char/uchar" when dealing
 // with strings; use "upx_uint8_t" when dealing with small integers
@@ -172,7 +176,11 @@ struct alignas(1) upx_charptr_unit_type final { char hidden__; };
 static_assert(sizeof(upx_charptr_unit_type) == 1);
 
 // using the system off_t was a bad idea even back in 199x...
-typedef upx_int64_t upx_off_t;
+#if (__SIZEOF_INT128__ == 16) && 1
+typedef __int128 upx_off_t;
+#else
+typedef long long upx_off_t;
+#endif
 #undef off_t
 #if 0
 // TODO later cleanup: at some future point we can do this:
@@ -845,5 +853,7 @@ int upx_test_overlap       ( const upx_bytep buf,
 // xspan
 #include "util/raw_bytes.h"
 #include "util/xspan.h"
+//
+#include "util/system_check_predefs.h"
 
 /* vim:set ts=4 sw=4 et: */

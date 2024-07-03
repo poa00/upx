@@ -422,7 +422,7 @@ forceinline constexpr int sign_extend(unsigned v, unsigned bits) noexcept {
 
 forceinline constexpr upx_int64_t sign_extend(upx_uint64_t v, unsigned bits) noexcept {
 #if (ACC_ARCH_M68K) // no barrel shifter
-    const upx_uint64_t sign_bit = 1ull << (bits - 1);
+    const upx_uint64_t sign_bit = upx_uint64_t(1) << (bits - 1);
     return ACC_ICAST(upx_int64_t, (v & (sign_bit - 1)) - (v & sign_bit));
 #else
     return ACC_ICAST(upx_int64_t, v << (64 - bits)) >> (64 - bits);

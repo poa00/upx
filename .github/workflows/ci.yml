@@ -64,7 +64,7 @@ jobs:
       - run: bash ./misc/scripts/check_whitespace_git.sh
       - name: Check source code formatting
         run: |
-          export UPX_CLANG_FORMAT="$(readlink -en "$PWD/../deps/bin-upx-20221212/clang-format-15.0.6")"
+          export UPX_CLANG_FORMAT="$(readlink -en ../deps/bin-upx-20221212/clang-format-15.0.6)"
           make -C src clang-format
           if ! git diff --quiet; then git diff; exit 1; fi
       - name: Rebuild docs

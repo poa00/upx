@@ -43,6 +43,11 @@
 #include "p_lx_elf.h"
 #include "ui.h"
 
+#if defined(__CHERI__) && defined(__CHERI_PURE_CAPABILITY__)
+#  pragma clang diagnostic ignored "-Wcheri-capability-misuse" // TODO later
+#  pragma clang diagnostic ignored "-Wcheri-provenance" // TODO later
+#endif
+
 using upx::umin;
 
 #define PT_LOAD32   Elf32_Phdr::PT_LOAD
@@ -5068,7 +5073,7 @@ int PackLinuxElf32::pack2(OutputFile *fo, Filter &ft)
                     asl_pack2_Shdrs(fo, pre_xct_top);
                 }
                 else { // Just copy up to xct_off
-                    x.size = umin(0ull + x.size, 0ull + xct_off - x.offset);
+                    x.size = umin(uintmax_t(x.size), uintmax_t(0ull + xct_off - x.offset));
                     if (0) { // DEBUG paranoia
                         fi->seek(x.offset, SEEK_SET);
                         fi->readx(ibuf, x.size);
@@ -5328,7 +5333,7 @@ int PackLinuxElf64::pack2(OutputFile *fo, Filter &ft)
                     asl_pack2_Shdrs(fo, pre_xct_top);
                 }
                 else { // Just copy up to xct_off
-                    x.size = umin(0ull + x.size, 0ull + xct_off - x.offset);
+                    x.size = umin(uintmax_t(x.size), uintmax_t(0ull + xct_off - x.offset));
                     if (0) { // DEBUG paranoia
                         fi->seek(x.offset, SEEK_SET);
                         fi->readx(ibuf, x.size);

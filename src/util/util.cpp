@@ -25,6 +25,7 @@
    <markus@oberhumer.com>               <ezerotven+github@gmail.com>
  */
 
+#define WANT_WINDOWS_LEAN_H 1
 #include "system_headers.h"
 #define ACC_WANT_ACC_INCI_H 1
 #include "miniacc.h"
@@ -291,23 +292,24 @@ void *upx_calloc(size_t n, size_t element_size) may_throw {
 }
 
 // simple unoptimized memswap()
-void upx_memswap(void *a, void *b, size_t bytes) noexcept {
-    if (a != b && bytes != 0) {
-        byte *x = (byte *) a;
-        byte *y = (byte *) b;
+// TODO later: CHERI clang bug/miscompilation with upx_memswap() ???
+void upx_memswap(void *aa, void *bb, size_t bytes) noexcept {
+    if (aa != bb && bytes != 0) {
+        byte *a = (byte *) aa;
+        byte *b = (byte *) bb;
         do {
             // strange clang-analyzer-15 false positive when compiling in Debug mode
             // clang-analyzer-core.uninitialized.Assign
-            byte tmp = *x; // NOLINT(*core.uninitialized.Assign) // bogus clang-analyzer warning
-            *x++ = *y;
-            *y++ = tmp;
+            byte tmp = *a; // NOLINT(*core.uninitialized.Assign) // bogus clang-analyzer warning
+            *a++ = *b;
+            *b++ = tmp;
         } while (--bytes != 0);
     }
 }
 
 // much better memswap(), optimized for our use case in sort functions below
 static inline void memswap_no_overlap(byte *a, byte *b, size_t bytes) noexcept {
-#if defined(__clang__) && __clang_major__ < 15
+#if defined(__clang__) && (__clang_major__ < 15) && !defined(__CHERI__)
     // work around a clang < 15 ICE (Internal Compiler Error)
     // @COMPILER_BUG @CLANG_BUG
     upx_memswap(a, b, bytes);
@@ -416,6 +418,42 @@ void upx_std_stable_sort(void *array, size_t n, upx_compare_func_t compare) {
     };
     std::stable_sort((element_type *) array, (element_type *) array + n, less);
 #endif
+}
+
+TEST_CASE("upx_memswap") {
+    auto check4 = [](int off1, int off2, int len, int a, int b, int c, int d) {
+        byte p[4] = {0, 1, 2, 3};
+        assert_noexcept(a + b + c + d == 0 + 1 + 2 + 3);
+        upx_memswap(p + off1, p + off2, len);
+        CHECK((p[0] == a && p[1] == b && p[2] == c && p[3] == d));
+    };
+    // identical
+    check4(0, 0, 4, 0, 1, 2, 3);
+    // non-overlapping
+    check4(0, 1, 1, 1, 0, 2, 3);
+    check4(1, 0, 1, 1, 0, 2, 3);
+    check4(0, 2, 2, 2, 3, 0, 1);
+    check4(2, 0, 2, 2, 3, 0, 1);
+    // overlapping
+    check4(0, 1, 2, 1, 2, 0, 3);
+    check4(1, 0, 2, 1, 2, 0, 3);
+    check4(0, 1, 3, 1, 2, 3, 0);
+    check4(1, 0, 3, 1, 2, 3, 0);
+
+    // pointer array
+    {
+        typedef byte element_type;
+        element_type a = 11, b = 22;
+        element_type *array[4];
+        memset(array, 0xfb, sizeof(array));
+        array[1] = &a;
+        array[3] = &b;
+        upx_memswap(array, array + 2, 2 * sizeof(array[0]));
+        assert(array[1] == &b);
+        assert(array[3] == &a);
+        assert(*array[1] == 22);
+        assert(*array[3] == 11);
+    }
 }
 
 #if UPX_CONFIG_USE_STABLE_SORT

@@ -114,13 +114,15 @@ struct PackerNames final {
         unsigned methods[PackerBase::MAX_METHODS];
         unsigned filters[PackerBase::MAX_FILTERS];
     };
-    Entry names[MAX_NAMES];
+    Entry names_array[MAX_NAMES];
+    Entry *names[MAX_NAMES];
     unsigned names_count = 0;
     const Options *o = nullptr;
 
     void add(const PackerBase *pb) {
         assert_noexcept(names_count < MAX_NAMES);
-        Entry &e = names[names_count++];
+        Entry &e = names_array[names_count];
+        names[names_count++] = &e;
         e.fname = pb->getFullName(o);
         e.sname = pb->getName();
         e.methods_count = e.filters_count = 0;
@@ -147,11 +149,10 @@ struct PackerNames final {
         self->add(pb);
         return false;
     }
-    static int __acc_cdecl_qsort compare_fname(const void *a, const void *b) {
-        return strcmp(((const Entry *) a)->fname, ((const Entry *) b)->fname);
-    }
-    static int __acc_cdecl_qsort compare_sname(const void *a, const void *b) {
-        return strcmp(((const Entry *) a)->sname, ((const Entry *) b)->sname);
+    static int __acc_cdecl_qsort compare_fname(const void *aa, const void *bb) {
+        const Entry *a = *(const Entry *const *) aa;
+        const Entry *b = *(const Entry *const *) bb;
+        return strcmp(a->fname, b->fname);
     }
 };
 } // namespace
@@ -162,10 +163,10 @@ static noinline void list_all_packers(FILE *f, int verbose) {
     PackerNames pn;
     pn.o = &o;
     (void) PackMaster::visitAllPackers(PackerNames::visit, nullptr, &o, &pn);
-    upx_gnomesort(pn.names, pn.names_count, sizeof(PackerNames::Entry), PackerNames::compare_fname);
+    upx_gnomesort(pn.names, pn.names_count, sizeof(pn.names[0]), PackerNames::compare_fname);
     size_t pos = 0;
     for (size_t i = 0; i < pn.names_count; i++) {
-        const PackerNames::Entry &e = pn.names[i];
+        const PackerNames::Entry &e = *pn.names[i];
         const char *const fn = e.fname;
         const char *const sn = e.sname;
         if (verbose >= 3) {

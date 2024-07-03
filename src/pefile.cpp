@@ -258,7 +258,7 @@ void PeFile::Interval::add_interval(const Interval *other) {
 void PeFile::Interval::flatten() {
     if (!ivnum)
         return;
-    upx_qsort(ivarr, ivnum, sizeof(interval), Interval::compare);
+    upx_qsort(ivarr, ivnum, sizeof(ivarr[0]), Interval::compare);
     for (unsigned ic = 0; ic < ivnum - 1; ic++) {
         unsigned jc;
         for (jc = ic + 1; jc < ivnum && ivarr[ic].start + ivarr[ic].len >= ivarr[jc].start; jc++)
@@ -878,7 +878,7 @@ public:
 
         // sort the sections by name before adding them all
         // NOLINTNEXTLINE(bugprone-multi-level-implicit-pointer-conversion)
-        upx_qsort(sections, nsections, sizeof(Section *), ImportLinker::compare);
+        upx_qsort(sections, nsections, sizeof(sections[0]), ImportLinker::compare);
 
         for (unsigned ic = 0; ic < nsections; ic++)
             addLoader(sections[ic]->name);
@@ -1063,7 +1063,7 @@ unsigned PeFile::processImports0(ord_mask_t ord_mask) { // pass 1
     oimport = mb_oimport;
 
     // NOLINTNEXTLINE(bugprone-multi-level-implicit-pointer-conversion)
-    upx_qsort(idlls, dllnum, sizeof(*idlls), UDll::compare);
+    upx_qsort(idlls, dllnum, sizeof(idlls[0]), UDll::compare);
 
     info("Processing imports: %d DLLs", dllnum);
     for (unsigned ic = 0; ic < dllnum; ic++) {

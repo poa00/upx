@@ -44,6 +44,9 @@
 #if (ACC_CC_GNUC >= 0x040200)
 #  pragma GCC diagnostic ignored "-Wcast-align"
 #endif
+#if defined(__CHERI__) && defined(__CHERI_PURE_CAPABILITY__)
+#  pragma clang diagnostic ignored "-Wcheri-capability-misuse" // TODO later
+#endif
 
 static const CLANG_FORMAT_DUMMY_STATEMENT
 #include "stub/i386-darwin.macho-entry.h"

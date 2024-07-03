@@ -219,8 +219,7 @@ forceinline constexpr T max(const T &a, const T &b) noexcept {
 }
 
 template <class T>
-inline constexpr bool is_uminmax_type =
-    is_same_any_v<T, upx_uint8_t, upx_uint16_t, upx_uint32_t, upx_uint64_t, unsigned long, size_t>;
+inline constexpr bool is_uminmax_type = std::is_integral_v<T> && std::is_unsigned_v<T>;
 
 template <class T, class = std::enable_if_t<is_uminmax_type<T>, T> >
 forceinline constexpr T umin(const T &a, const T &b) noexcept {

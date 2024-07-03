@@ -49,6 +49,8 @@ unsigned membuffer_get_size(MemBuffer &mb) noexcept { return mb.getSize(); }
 
 #if defined(__SANITIZE_ADDRESS__) || defined(__SANITIZE_MEMORY__)
 static forceinline constexpr bool use_simple_mcheck() noexcept { return false; }
+#elif defined(__CHERI__) && defined(__CHERI_PURE_CAPABILITY__)
+static forceinline constexpr bool use_simple_mcheck() noexcept { return false; }
 #elif (WITH_VALGRIND) && defined(RUNNING_ON_VALGRIND)
 static bool use_simple_mcheck_flag;
 static noinline void init_use_simple_mcheck() noexcept {

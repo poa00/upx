@@ -207,7 +207,7 @@ public: // raw access
     pointer raw_bytes(size_t bytes) const {
         assertInvariants();
         if (bytes > 0) {
-            if __acc_cte (ptr == nullptr)
+            if very_unlikely (ptr == nullptr)
                 xspan_fail_nullptr();
         }
         return ptr;
