@@ -57,10 +57,10 @@ EXP_HEAD        0x0000000000000000      0x104
  EXP_HEAD       0x0000000000000000      0x104 tmp/arm64-expand.o
                 0x0000000000000000                f_expand
 
-EXP_TAIL        0x0000000000000000       0x44
- EXP_TAIL       0x0000000000000000       0x44 tmp/arm64-expand.o
-                0x0000000000000000                eof
-                0x0000000000000038                eof_lzma
+EXP_TAIL        0x0000000000000000       0x50
+ EXP_TAIL       0x0000000000000000       0x50 tmp/arm64-expand.o
+                0x000000000000000c                eof
+                0x0000000000000044                eof_lzma
 
 NRV2E           0x0000000000000000       0xf4
  NRV2E          0x0000000000000000       0xf4 tmp/arm64-expand.o

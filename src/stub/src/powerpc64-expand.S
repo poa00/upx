@@ -114,6 +114,10 @@ decompress:  // (src *, cpr_len, dst *, &dstlen);
 //  sections NRV2B, etc, inserted here by addLoader() from ::buildLinuxLoader()
 
   section EXP_TAIL
+// Fall through: daisy chain had no matching method
+        mr a0,methb
+        teq a0,a0
+
 #define M_NRV2B_LE32    2
 #define M_NRV2B_8    3
 #define M_NRV2D_LE32    5

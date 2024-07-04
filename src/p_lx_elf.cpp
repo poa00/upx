@@ -1513,7 +1513,7 @@ PackLinuxElf32::buildLinuxLoader(
         if (((1u<<M_LZMA)) & m_decompr) {
             len += snprintf(&sec[len], sizeof(sec) - len, ",%s", "LZMA_ELF00,LZMA_DEC20,LZMA_DEC30");
         }
-        len += snprintf(&sec[len], sizeof(sec) - len, ",%s", "SYSCALLS,EXP_TAIL");
+        len += snprintf(&sec[len], sizeof(sec) - len, ",%s", "EXP_TAIL,SYSCALLS");
         (void)len;
         addLoader(sec, nullptr);
         relocateLoader();
@@ -1666,7 +1666,7 @@ PackLinuxElf64::buildLinuxLoader(
         if (((1u<<M_LZMA)) & m_decompr) {
             len += snprintf(&sec[len], sizeof(sec) - len, ",%s", "LZMA_ELF00,LZMA_DEC20,LZMA_DEC30");
         }
-        len += snprintf(&sec[len], sizeof(sec) - len, ",%s", "SYSCALLS,EXP_TAIL");
+        len += snprintf(&sec[len], sizeof(sec) - len, ",%s", "EXP_TAIL,SYSCALLS");
         (void)len;
         addLoader(sec, nullptr);
         relocateLoader();
@@ -2707,10 +2707,10 @@ tribool PackLinuxElf32::canPack()
         unsigned const p_type = get_te32(&phdr->p_type);
         if (PT_LOAD32 == p_type) {
             // The first PT_LOAD32 must cover the beginning of the file (0==p_offset).
+            upx_uint32_t const p_offset = get_te32(&phdr->p_offset);
             if (1!= exetype) {
                 exetype = 1;
                 load_va = get_te32(&phdr->p_vaddr);  // class data member
-                upx_uint32_t const p_offset = get_te32(&phdr->p_offset);
                 upx_uint32_t const off = ~page_mask & (upx_uint32_t)load_va;
                 if (off && off == p_offset) { // specific hint
                     throwCantPack("Go-language PT_LOAD: try hemfix.c, or try '--force-execve'");
@@ -2724,8 +2724,10 @@ tribool PackLinuxElf32::canPack()
                 // FIXME: bad for shlib!
                 hatch_off = ~3ul & (3+ get_te32(&phdr->p_memsz));
             }
-            max_LOADsz = UPX_MAX(max_LOADsz, get_te32(&phdr->p_filesz));
-            max_offset = UPX_MAX(max_offset, get_te32(&phdr->p_filesz) + get_te32(&phdr->p_offset));
+            max_LOADsz = UPX_MAX(max_LOADsz, UPX_MIN(0x200000u, get_te32(&phdr->p_align)));
+            unsigned filesz = get_te32(&phdr->p_filesz);
+            max_LOADsz = UPX_MAX(max_LOADsz, filesz);
+            max_offset = UPX_MAX(max_offset, filesz + p_offset);
         }
     }
     if (canUnpack()) {
@@ -3134,10 +3136,10 @@ tribool PackLinuxElf64::canPack()
         unsigned const p_type = get_te32(&phdr->p_type);
         if (PT_LOAD64 == p_type) {
             // The first PT_LOAD64 must cover the beginning of the file (0==p_offset).
+            upx_uint64_t const p_offset = get_te64(&phdr->p_offset);
             if (1!= exetype) {
                 exetype = 1;
                 load_va = get_te64(&phdr->p_vaddr);  // class data member
-                upx_uint64_t const p_offset = get_te64(&phdr->p_offset);
                 upx_uint64_t const off = ~page_mask & load_va;
                 if (off && off == p_offset) { // specific hint
                     throwCantPack("Go-language PT_LOAD: try hemfix.c, or try '--force-execve'");
@@ -3151,8 +3153,12 @@ tribool PackLinuxElf64::canPack()
                 // FIXME: bad for shlib!
                 hatch_off = ~3ul & (3+ get_te64(&phdr->p_memsz));
             }
-            max_LOADsz = UPX_MAX(max_LOADsz, get_te64(&phdr->p_filesz));
-            max_offset = UPX_MAX(max_offset, get_te64(&phdr->p_filesz) + get_te64(&phdr->p_offset));
+            upx_uint64_t align = get_te64(&phdr->p_align);
+            if (0x200000ul < align) align = 0x200000ul;  // UPX_MIN type problem
+            max_LOADsz = UPX_MAX(max_LOADsz, align);
+            upx_uint64_t filesz = get_te64(&phdr->p_filesz);
+            max_LOADsz = UPX_MAX(max_LOADsz, filesz);
+            max_offset = UPX_MAX(max_offset, filesz + p_offset);
         }
     }
     if (canUnpack()) {

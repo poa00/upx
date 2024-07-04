@@ -204,12 +204,12 @@ section LZMA_ELF00  // prefix for parameter juggling
 
 #include "arch/amd64/lzma_d.S"
 
+  section EXP_TAIL
 // Fall through: daisy chain had no matching method
         mov meth,%ecx  // b_method as __NR__
         or $~0,%eax  // "errno"
         int3; hlt  // no method
 
-  section EXP_TAIL
 eof:
 eof_n2b:
 eof_n2d:

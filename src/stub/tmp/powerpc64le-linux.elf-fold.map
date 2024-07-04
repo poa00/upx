@@ -57,9 +57,9 @@ EXP_HEAD        0x0000000000000000       0xa8
  EXP_HEAD       0x0000000000000000       0xa8 tmp/powerpc64le-linux.elf-fold.o
                 0x0000000000000000                f_expand
 
-EXP_TAIL        0x0000000000000000       0x84
- EXP_TAIL       0x0000000000000000       0x84 tmp/powerpc64le-linux.elf-fold.o
-                0x0000000000000000                eof_nrv
+EXP_TAIL        0x0000000000000000       0x8c
+ EXP_TAIL       0x0000000000000000       0x8c tmp/powerpc64le-linux.elf-fold.o
+                0x0000000000000008                eof_nrv
 
 NRV2E           0x0000000000000000      0x154
  NRV2E          0x0000000000000000      0x154 tmp/powerpc64le-linux.elf-fold.o
