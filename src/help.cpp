@@ -571,6 +571,12 @@ void show_sysinfo(const char *options_var) {
 #endif
 
         // architecture
+#if defined(__CHERI__)
+        cf_print("__CHERI__", "%lld", __CHERI__ + 0, 3);
+#endif
+#if defined(__CHERI_PURE_CAPABILITY__)
+        cf_print("__CHERI_PURE_CAPABILITY__", "%lld", __CHERI_PURE_CAPABILITY__ + 0, 3);
+#endif
 #if defined(__mips_hard_float)
         cf_print("__mips_hard_float", "%lld", __mips_hard_float + 0);
 #endif
@@ -628,6 +634,15 @@ void show_sysinfo(const char *options_var) {
         cf_print("__PIE__", "%lld", __PIE__ + 0, 3);
 #elif defined(__pie__)
         cf_print("__pie__", "%lld", __pie__ + 0, 3);
+#endif
+#if defined(__SIZEOF_INT128__)
+        cf_print("__SIZEOF_INT128__", "%lld", __SIZEOF_INT128__ + 0, 3);
+#endif
+#if defined(__SIZEOF_LONG_LONG__) && (__SIZEOF_LONG_LONG__ + 0 > 8)
+        cf_print("__SIZEOF_LONG_LONG__", "%lld", __SIZEOF_LONG_LONG__ + 0, 3);
+#endif
+#if defined(__SIZEOF_POINTER__) && (__SIZEOF_POINTER__ + 0 > 8)
+        cf_print("__SIZEOF_POINTER__", "%lld", __SIZEOF_POINTER__ + 0, 3);
 #endif
 #if defined(UPX_CONFIG_DISABLE_WSTRICT)
         cf_print("UPX_CONFIG_DISABLE_WSTRICT", "%lld", UPX_CONFIG_DISABLE_WSTRICT + 0, 3);

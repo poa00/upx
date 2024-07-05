@@ -153,6 +153,10 @@ typedef acc_int32_t upx_int32_t;
 typedef acc_uint32_t upx_uint32_t;
 typedef acc_int64_t upx_int64_t;
 typedef acc_uint64_t upx_uint64_t;
+#if (__SIZEOF_INT128__ == 16)
+typedef __int128 upx_int128_t;
+typedef unsigned __int128 upx_uint128_t;
+#endif
 typedef acc_uintptr_t upx_uintptr_t;
 #if defined(__PTRADDR_TYPE__) // CHERI
 typedef __PTRADDR_TYPE__ upx_ptraddr_t;
@@ -177,7 +181,7 @@ static_assert(sizeof(upx_charptr_unit_type) == 1);
 
 // using the system off_t was a bad idea even back in 199x...
 #if (__SIZEOF_INT128__ == 16) && 1
-typedef __int128 upx_off_t;
+typedef upx_int128_t upx_off_t;
 #else
 typedef long long upx_off_t;
 #endif

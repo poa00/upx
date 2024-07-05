@@ -127,6 +127,8 @@ static_assert(sizeof(long long) == __SIZEOF_LONG_LONG__, "");
 static_assert(16 == __SIZEOF_INT128__, "");
 static_assert(sizeof(__int128) == __SIZEOF_INT128__, "");
 static_assert(sizeof(unsigned __int128) == __SIZEOF_INT128__, "");
+static_assert(sizeof(upx_int128_t) == __SIZEOF_INT128__, "");
+static_assert(sizeof(upx_uint128_t) == __SIZEOF_INT128__, "");
 #endif
 #if defined(__SIZEOF_PTRDIFF_T__)
 static_assert(sizeof(ptrdiff_t) == __SIZEOF_PTRDIFF_T__, "");
@@ -886,6 +888,52 @@ void upx_compiler_sanity_check(void) noexcept {
     COMPILE_TIME_ASSERT_ALIGNED1(LE32)
     COMPILE_TIME_ASSERT_ALIGNED1(LE64)
 
+    // check that these types are not some multi-word macro
+#define CHECK_TYPE(T) (void) (T())
+    CHECK_TYPE(int8_t);
+    CHECK_TYPE(uint8_t);
+    CHECK_TYPE(int16_t);
+    CHECK_TYPE(uint16_t);
+    CHECK_TYPE(int32_t);
+    CHECK_TYPE(uint32_t);
+    CHECK_TYPE(int64_t);
+    CHECK_TYPE(uint64_t);
+    CHECK_TYPE(intmax_t);
+    CHECK_TYPE(uintmax_t);
+    CHECK_TYPE(ptrdiff_t);
+    CHECK_TYPE(size_t);
+    CHECK_TYPE(intptr_t);
+    CHECK_TYPE(uintptr_t);
+#if 0
+    CHECK_TYPE(acc_int8_t);
+    CHECK_TYPE(acc_uint8_t);
+    CHECK_TYPE(acc_int16_t);
+    CHECK_TYPE(acc_uint16_t);
+    CHECK_TYPE(acc_int32_t);
+    CHECK_TYPE(acc_uint32_t);
+    CHECK_TYPE(acc_int64_t);
+    CHECK_TYPE(acc_uint64_t);
+    CHECK_TYPE(acc_intptr_t);
+    CHECK_TYPE(acc_uintptr_t);
+#endif
+    CHECK_TYPE(upx_int8_t);
+    CHECK_TYPE(upx_uint8_t);
+    CHECK_TYPE(upx_int16_t);
+    CHECK_TYPE(upx_uint16_t);
+    CHECK_TYPE(upx_int32_t);
+    CHECK_TYPE(upx_uint32_t);
+    CHECK_TYPE(upx_int64_t);
+    CHECK_TYPE(upx_uint64_t);
+#if (__SIZEOF_INT128__ == 16)
+    CHECK_TYPE(upx_int128_t);
+    CHECK_TYPE(upx_uint128_t);
+#endif
+    CHECK_TYPE(upx_ptraddr_t);
+    CHECK_TYPE(upx_uintptr_t);
+    CHECK_TYPE(upx_uptrdiff_t);
+    CHECK_TYPE(upx_ssize_t);
+#undef CHECK_TYPE
+
     CheckIntegral<char>::check();
     CheckIntegral<signed char>::check();
     CheckIntegral<unsigned char>::check();
@@ -928,8 +976,8 @@ void upx_compiler_sanity_check(void) noexcept {
     CheckIntegral<upx_uintptr_t>::check();
 #endif
 #if (__SIZEOF_INT128__ == 16)
-    CheckIntegral<__int128>::check();
-    CheckIntegral<unsigned __int128>::check();
+    CheckIntegral<upx_int128_t>::check();
+    CheckIntegral<upx_uint128_t>::check();
 #endif
 
     CheckSignedness<char, false>::check(); // -funsigned-char
@@ -961,8 +1009,8 @@ void upx_compiler_sanity_check(void) noexcept {
     CheckSignedness<uintptr_t, false>::check();
     CheckSignedness<upx_uintptr_t, false>::check();
 #if (__SIZEOF_INT128__ == 16)
-    CheckSignedness<__int128, true>::check();
-    CheckSignedness<unsigned __int128, false>::check();
+    CheckSignedness<upx_int128_t, true>::check();
+    CheckSignedness<upx_uint128_t, false>::check();
 #endif
 
 #define CHECK_TYPE_PAIR(A, B)                                                                      \
@@ -982,7 +1030,7 @@ void upx_compiler_sanity_check(void) noexcept {
     CHECK_TYPE_PAIR(intptr_t, uintptr_t);
     CHECK_TYPE_PAIR(acc_intptr_t, acc_uintptr_t);
 #if (__SIZEOF_INT128__ == 16)
-    CHECK_TYPE_PAIR(__int128, unsigned __int128);
+    CHECK_TYPE_PAIR(upx_int128_t, upx_uint128_t);
 #endif
 #undef CHECK_TYPE_PAIR
 
@@ -1361,7 +1409,7 @@ TEST_CASE("libc qsort") {
             const Elem *a = (const Elem *) aa;
             const Elem *b = (const Elem *) bb;
             assert_noexcept(a->id != b->id); // check not IDENTICAL
-            return a->value < b->value ? -1 : (a->value == b->value ? 0 : 1);
+            return a->value == b->value ? 0 : (a->value < b->value ? -1 : 1);
         }
         static noinline bool check_sort(upx_sort_func_t sort, Elem *e, size_t n, bool is_stable) {
             upx_uint32_t x = 5381 + (upx_rand() & 255);
