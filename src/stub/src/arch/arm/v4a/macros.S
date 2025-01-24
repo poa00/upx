@@ -3,8 +3,8 @@
 ;
 ;  This file is part of the UPX executable compressor.
 ;
-;  Copyright (C) 1996-2024 Markus Franz Xaver Johannes Oberhumer
-;  Copyright (C) 1996-2024 Laszlo Molnar
+;  Copyright (C) 1996-2025 Markus Franz Xaver Johannes Oberhumer
+;  Copyright (C) 1996-2025 Laszlo Molnar
 ;  All Rights Reserved.
 ;
 ;  UPX and the UCL library are free software; you can redistribute them
@@ -33,6 +33,9 @@
 .macro          section name
                 .section \name,"ax"
 .endm
+
+#define bkpt .long 0xe7f001f0  /* reserved instr; Linux GNU eabi breakpoint */
+#define bkpt_th .short 0xde01  /* reserved instr; Linux GNU eabi breakpoint */
 
 /* macros reduce "noise" when comparing this ARM code to corresponding THUMB code */
 #define PUSH stmdb sp!,

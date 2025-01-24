@@ -2,7 +2,7 @@
 
    This file is part of the UPX executable compressor.
 
-   Copyright (C) 1996-2024 Markus Franz Xaver Johannes Oberhumer
+   Copyright (C) 1996-2025 Markus Franz Xaver Johannes Oberhumer
    All Rights Reserved.
 
    UPX and the UCL library are free software; you can redistribute them
@@ -55,13 +55,17 @@
 #endif
 #endif
 
-#if defined(__FAST_MATH__) && defined(__clang__) && (__clang_major__ + 0 >= 6)
+#if defined(__FAST_MATH__) && defined(__clang__) && (__clang_major__ + 0 > 0)
+#if __clang_major__ >= 6
 // warning: comparison with NaN always evaluates to false in fast floating point modes
 #pragma clang diagnostic ignored "-Wtautological-constant-compare"
 #endif
-#if defined(__FAST_MATH__) && defined(__clang__) && (__clang_major__ + 0 >= 18)
+#if defined(__has_warning)
+#if __has_warning("-Wnan-infinity-disabled")
 // warning: use of NaN is undefined behavior due to the currently enabled floating-point options
 #pragma clang diagnostic ignored "-Wnan-infinity-disabled"
+#endif
+#endif
 #endif
 
 #include <doctest/doctest/parts/doctest.cpp>

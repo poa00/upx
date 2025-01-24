@@ -2,8 +2,8 @@
 
    This file is part of the UPX executable compressor.
 
-   Copyright (C) 1996-2024 Markus Franz Xaver Johannes Oberhumer
-   Copyright (C) 1996-2024 Laszlo Molnar
+   Copyright (C) 1996-2025 Markus Franz Xaver Johannes Oberhumer
+   Copyright (C) 1996-2025 Laszlo Molnar
    All Rights Reserved.
 
    UPX and the UCL library are free software; you can redistribute them
@@ -96,13 +96,13 @@ struct timespec {
 // So PAGE_SIZE is not constant in 64-bit mode of __powerpc64__.
     // empty: not constant, must use run-time value from AT_PAGESZ
 #elif defined(__mips__)  //}{
-#define PAGE_MASK       (~0ul<<16)   // discards the offset, keeps the page
+#define PAGE_MASK       (~0ul<<16)   /* discards the offset, keeps the page */
 #define PAGE_SIZE       ( 1ul<<16)
 #elif defined(__amd64__)  //}{
-#define PAGE_MASK       (~0ul<<12)   // discards the offset, keeps the page
+#define PAGE_MASK       (~0ul<<12)   /* discards the offset, keeps the page */
 #define PAGE_SIZE       ( 1ul<<12)
 #elif defined(__i386__) || defined(__powerpc__) || defined(__arm__)  //}{
-#define PAGE_MASK       (~0ul<<12)   // discards the offset, keeps the page
+#define PAGE_MASK       (~0ul<<12)   /* discards the offset, keeps the page */
 #define PAGE_SIZE       ( 1ul<<12)
 #endif  //}
 
@@ -175,14 +175,18 @@ struct timespec {
 #define __NR_lseek               19
 #define __NR_getpid              20
 #define __NR_access              33
+#define __NR_mkdir               39
 #define __NR_brk                 45
 #define __NR_fcntl               55
 #define __NR_gettimeofday        78
 #define __NR_mmap                90
 #define __NR_munmap              91
 #define __NR_ftruncate           93
+#define __NR_stat               106
+#define __NR_uname              122
 #define __NR_adjtimex           124
 #define __NR_mprotect           125
+#define __NR_msync              144
 #define __NR_nanosleep          162
 #define __NR_memfd_create       356  /*0x164*/
 
@@ -342,6 +346,9 @@ type name(type1 arg1,type2 arg2,type3 arg3) \
 #define _exit           syscall_exit
 #define exit            syscall_exit
 
+struct stat;
+struct utsname;
+
 static inline _syscall2(int,access,const char *,file,int,mode)
 static inline _syscall1(int,adjtimex,struct timex *,ntx)
 static inline _syscall1(void *,brk,void *,high)
@@ -355,13 +362,17 @@ static inline _syscall0(pid_t,getpid)
 static inline _syscall2(int,gettimeofday,struct timeval *,tv,void *,tz)
 static inline _syscall3(off_t,lseek,int,fd,off_t,offset,int,whence)
 static inline _syscall2(int,memfd_create,char const *,name,unsigned,flags);
+static inline _syscall2(int,mkdir,char const *,name,unsigned,mode);
 static inline _syscall3(int,mprotect,void *,addr,size_t,len,int,prot)
+static inline _syscall3(int,msync,void const *,addr,size_t,len,unsigned,flags)
 static inline _syscall2(int,munmap,void *,start,size_t,length)
 static inline _syscall2(int,nanosleep,const struct timespec *,rqtp,struct timespec *,rmtp)
 static inline _syscall3(int,open,const char *,file,int,flag,int,mode)
 static inline _syscall3(ssize_t,read,int,fd,void *,buf,size_t,count)
+static inline _syscall2(int,stat,char const *,path,struct stat *,buf)
 static inline _syscall3(pid_t,waitpid,pid_t,pid,int *,wait_stat,int,options)
 static inline _syscall3(ssize_t,write,int,fd,const void *,buf,size_t,count)
+static inline _syscall1(int,uname,struct utsname *,buf)
 static inline _syscall1(int,unlink,const char *,file)
 static inline _syscall2(int,link,const char *,src, const char *,dst)
 
@@ -380,6 +391,7 @@ static inline _syscall2(int,link,const char *,src, const char *,dst)
         const register char *const str asm("a0") = string;
         asm volatile("syscall" : : "r"(num), "r"(str));
 */
+#ifndef NO_WANT_MMAP  /*{*/
 static void *mmap(
     void *addr, size_t len,
     int prot, int flags,
@@ -400,21 +412,26 @@ static void *mmap(
         "\tsw $8,0x10($29)\n"
         "\tsw $9,0x14($29)\n"
         "\tsyscall\n"
-        "\taddiu $29,$29, 0x20\n"
-        "\tb sysret\n"
-    "sysgo:"
+        ".set noreorder\n"
+          "\tb sysret_incl\n"
+          "\t  addiu $29,$29, 0x20\n"
+        ".set reorder\n"
+    "sysgo_incl:"
       /*"break\n"*/  /* debug only */
         "\tsyscall\n"
-    "sysret: .set noat\n"
+    "sysret_incl: .set noat\n"
         "\tsltiu $1,$7,1\n"   /* 1: no error;  0: error; $7 == a3 */
         "\taddiu $1,$1,-1\n"  /* 0: no error; -1: error */
         "\tor $2,$2,$1\n"     /* $2 == v0; good result, else -1 for error */
-        ".set at\n"
+        /*".set at\n"*/
     : "+r"(v0), "+r"(a3)  /* "+r" ==> both read and write */
     :  "r"(a0), "r"(a1), "r"(a2),      "r"(t0), "r"(t1)
     );
     return (void *)v0;
 }
+#endif  /* NO_WANT_MMAP }*/
+
+#ifndef NO_WANT_READ  /*{*/
 static ssize_t read(int fd, void *buf, size_t len)
 {
 #define __NR_read (3+ 4000)
@@ -423,13 +440,14 @@ static ssize_t read(int fd, void *buf, size_t len)
     register size_t const a2 asm("a2") = len;
     register size_t       v0 asm("v0") = __NR_read;
     __asm__ __volatile__(
-        "bal sysgo"
+        "bal sysgo_incl"
     : "+r"(v0)
     : "r"(a0), "r"(a1), "r"(a2)
     : "a3", "ra"
     );
     return v0;
 }
+#endif  /* NO_WANT_READ }*/
 
 #if 0  //{ UNUSED
 static void *brk(void *addr)
@@ -438,7 +456,7 @@ static void *brk(void *addr)
     register void *const a0 asm("a0") = addr;
     register void *      v0 asm("v0") = (void *)__NR_brk;
     __asm__ __volatile__(
-        "bal sysgo"
+        "bal sysgo_incl"
     : "+r"(v0)
     : "r"(a0)
     : "a3", "ra"
@@ -447,20 +465,23 @@ static void *brk(void *addr)
 }
 #endif  //}
 
+#ifndef NO_WANT_CLOSE  /*{*/
 static int close(int fd)
 {
 #define __NR_close (6+ 4000)
     register int const a0 asm("a0") = fd;
     register int       v0 asm("v0") = __NR_close;
     __asm__ __volatile__(
-        "bal sysgo"
+        "bal sysgo_incl"
     : "+r"(v0)
     : "r"(a0)
     : "a3", "ra"
     );
     return v0;
 }
+#endif  /* NO_WANT_CLOSE }*/
 
+#ifndef NO_WANT_EXIT  /*{*/
 static void exit(int code) __attribute__ ((__noreturn__));
 static void exit(int code)
 {
@@ -468,13 +489,14 @@ static void exit(int code)
     register int const a0 asm("a0") = code;
     register int       v0 asm("v0") = __NR_exit;
     __asm__ __volatile__(
-        "bal sysgo"
+        "bal sysgo_incl"
     :
     : "r"(v0), "r"(a0)
     : "a3", "ra"
     );
     for (;;) {}
 }
+#endif  /* NO_WANT_EXIT }*/
 
 #if 0  //{ unused?
 static int munmap(void *addr, size_t len)
@@ -484,7 +506,7 @@ static int munmap(void *addr, size_t len)
     register size_t const a1 asm("a1") = len;
     register size_t       v0 asm("v0") = __NR_munmap;
     __asm__ __volatile__(
-        "bal sysgo"
+        "bal sysgo_incl"
     : "+r"(v0)
     : "r"(a0), "r"(a1)
     : "a3", "ra"
@@ -493,6 +515,7 @@ static int munmap(void *addr, size_t len)
 }
 #endif  //}
 
+#ifndef NO_WANT_MPROTECT  /*{*/
 static int mprotect(void const *addr, size_t len, int prot)
 {
 #define __NR_mprotect (125+ 4000)
@@ -501,14 +524,34 @@ static int mprotect(void const *addr, size_t len, int prot)
     register int         const a2 asm("a2") = prot;
     register size_t            v0 asm("v0") = __NR_mprotect;
     __asm__ __volatile__(
-        "bal sysgo"
+        "bal sysgo_incl"
     : "+r"(v0)
     : "r"(a0), "r"(a1), "r"(a2)
     : "a3", "ra"
     );
     return v0;
 }
+#endif  /*} NO_WANT_MPROTECT */
 
+#ifndef NO_WANT_MSYNC  /*{*/
+static int msync(void const *addr, size_t len, int prot)
+{
+#define __NR_msync (144+ 4000)
+    register void const *const a0 asm("a0") = addr;
+    register size_t      const a1 asm("a1") = len;
+    register int         const a2 asm("a2") = prot;
+    register size_t            v0 asm("v0") = __NR_msync;
+    __asm__ __volatile__(
+        "bal sysgo_incl"
+    : "+r"(v0)
+    : "r"(a0), "r"(a1), "r"(a2)
+    : "a3", "ra"
+    );
+    return v0;
+}
+#endif  /*} NO_WANT_MSYNC */
+
+#ifndef NO_WANT_OPEN  /*{*/
 static ssize_t open(char const *path, int kind, int mode)
 {
 #define __NR_open (5+ 4000)
@@ -517,15 +560,17 @@ static ssize_t open(char const *path, int kind, int mode)
     register int         const a2 asm("a2") = mode;
     register size_t            v0 asm("v0") = __NR_open;
     __asm__ __volatile__(
-        "bal sysgo"
+        "bal sysgo_incl"
     : "+r"(v0)
     : "r"(a0), "r"(a1), "r"(a2)
     : "a3", "ra"
     );
     return v0;
 }
+#endif  /* NO_WANT_OPEN }*/
 
 #if DEBUG  /*{*/
+#ifndef NO_WANT_WRITE  /*{*/
 static ssize_t write(int fd, void const *buf, size_t len)
 {
 #define __NR_write (4+ 4000)
@@ -534,13 +579,14 @@ static ssize_t write(int fd, void const *buf, size_t len)
     register size_t       const a2 asm("a2") = len;
     register size_t             v0 asm("v0") = __NR_write;
     __asm__ __volatile__(
-        "bal sysgo"
+        "bal sysgo_incl"
     : "+r"(v0)
     : "r"(a0), "r"(a1), "r"(a2)
     : "a3", "ra"
     );
     return v0;
 }
+#endif  /*}*/
 #endif  /*}*/
 
 #else  /*}{ generic */
@@ -553,7 +599,8 @@ off_t lseek(int fd, off_t offset, int whence);
 int memfd_create(char const *, unsigned);
 int munmap(void *, size_t);
 int mprotect(void const *, size_t, int);
-int open(char const *, unsigned, unsigned);
+int msync(void const *, size_t, unsigned);
+int open(char const *, int, int);
 int openat(int fd, char const *, unsigned, unsigned);
 ssize_t read(int, void *, size_t);
 int unlink(char const *);
@@ -696,15 +743,15 @@ typedef struct
 // !!! must be the same as in p_unix.h !!!
 #define OVERHEAD        2048
 
-#define UPX_MAGIC_LE32  0x21585055          // "UPX!"
+#define UPX_MAGIC_LE32  0x21585055          /* "UPX!" */
 
 #if 1
 // patch constants for our loader (le32 format)
-//#define UPX1            0x31585055          // "UPX1"
-#define UPX2            0x32585055          // "UPX2"
-#define UPX3            0x33585055          // "UPX4"
-#define UPX4            0x34585055          // "UPX4"
-//#define UPX5            0x35585055          // "UPX5"
+//#define UPX1            0x31585055          /* "UPX1" */
+#define UPX2            0x32585055          /* "UPX2" */
+#define UPX3            0x33585055          /* "UPX4" */
+#define UPX4            0x34585055          /* "UPX4" */
+//#define UPX5            0x35585055          /* "UPX5" */
 #else
 // transform into relocations when using ElfLinker
 extern const unsigned UPX2;

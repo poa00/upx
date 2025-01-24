@@ -4,7 +4,7 @@
 *
 *  Copyright (C) 1996-2021 Markus Franz Xaver Johannes Oberhumer
 *  Copyright (C) 1996-2021 Laszlo Molnar
-*  Copyright (C) 2000-2024 John F. Reiser
+*  Copyright (C) 2000-2025 John F. Reiser
 *  All Rights Reserved.
 *
 *  UPX and the UCL library are free software; you can redistribute them
@@ -53,10 +53,6 @@ MAP_PRIVATE= 2
 MAP_FIXED=     0x10
 MAP_ANONYMOUS= 0x20
 
-PAGE_SHIFT= 12
-PAGE_MASK=  (~0<<PAGE_SHIFT)
-PAGE_SIZE= -PAGE_MASK
-
 // /usr/include/asm-generic/unistd.h
 __NR_close    = 0x39  //  57
 __NR_exit     = 0x5d  //  93
@@ -65,6 +61,7 @@ __NR_mmap     = 0xde  // 222
 __NR_mprotect = 0xe2  // 226
 __NR_munmap   = 0xd7  // 215
 __NR_openat   = 0x38  //  56
+__NR_read     = 0x3f  //  63
 __NR_write    = 0x40  //  64
 
 arg1  .req x0
@@ -93,7 +90,7 @@ arg6w .req w5
 
         .balign 4
 _start: .globl _start
-        nop  // bkpt // DEBUG
+        bkpt // DEBUG
         PUSH4 (x0,x1,x2,lr)  // MATCH_00
 
         sub sp,sp,#2*NBPW  // space for ADRU, LENU
@@ -110,6 +107,30 @@ L70_ret:
         str x0,[old_sp,#F_LENU]
         sub x0,sp,x0  // alloca
         and sp,x0,#-2*NBPW  // align stack
+
+psa_fd  .req w5
+aux_end .req x4
+page_m  .req x7
+
+AT_PAGESZ= 6
+O_RDONLY= 0
+        mov w2,#O_RDONLY
+        adr x1,str_psa
+        mov w0,#0
+        do_sys __NR_openat; mov psa_fd,w0
+        mov x1,sp  // buffer
+        mov x2,#512  // len
+        do_sys __NR_read; add aux_end,x1,x0  // end
+        mov w0,psa_fd; do_sys __NR_close
+        .unreq psa_fd
+0:
+        ldr s0,[x1,#NBPW]  // value
+        ldr x2,[x1],#2*NBPW  // tag
+        cmp x2,#AT_PAGESZ; beq 1f
+        cmp x1,aux_end; blo 0b; mov x0,#1<<12  // default 4KiB
+        .unreq aux_end
+1:
+        sub page_m,xzr,x0  // PAGE_MASK
 
         add arg4,old_sp,#F_LENU  // &dstlen
         mov arg3,sp  // dst for decompress
@@ -145,11 +166,16 @@ L70_ret:
 
         adr arg1,_start - 4*4  // &SO_INFO
         add arg2,sp,#F_ARGC  // &{argc, argv, envp}
+        str page_m, [u_ptr,#0]
+        add u_ptr,u_ptr,2*NBPW
         br u_ptr
         .unreq u_ptr
 
 str_upx:
         .asciz "upx"
+str_psa:
+        .asciz "/proc/self/auxv"
+        .balign 4
 
 //%esp:
 //  MATCH_04  ptr unfolded_code
@@ -157,8 +183,15 @@ str_upx:
 //  MATCH_00  argc,argv,envp,lr(_start)
 
 f_decompress:
+// nrv2b code is hard-wired here
 #define NO_METHOD_CHECK 1
-#undef  NO_SYNC_CACHE
+
+// only one de-compressor; build 'eof' return
+#undef DAISY_CHAIN
+
+// use of mmap() forces implcit cache sync
+#define NO_SYNC_CACHE 1
+
 off     .req w5
 #include "arch/arm64/v8/nrv2b_d32.S"
 

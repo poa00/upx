@@ -17,11 +17,11 @@ RUN dpkg --add-architecture i386 \
         7zip bat bfs btop bubblewrap busybox bzip2 bzip3 cabextract ccache chrpath cmake cpio \
         dash diffstat direnv elfutils execstack eza fd-find file fish fzf \
         g++ gawk gdb gojq ht htop hyperfine jq ksh \
-        libzstd-dev lsb-release lsd lz4 lzip lzop minify mksh moreutils musl neovim ninja-build \
+        lftp libzstd-dev lsb-release lsd lz4 lzip lzop minify mksh moreutils musl neovim ninja-build \
         p7zip parallel patch patchelf patchutils pax-utils proot \
         python3 python3-pyasn1 python3-pycryptodome python3-pycurl python3-tomli python3-tomli-w \
         python3-yaml python3-zstd \
-        re2c ripgrep rsync screen strace universal-ctags unzip valgrind yash yq \
+        re2c ripgrep rsync screen socat strace universal-ctags unzip valgrind yash yq \
         zip zlib1g-dev zoxide zsh zstd \
         # extra packages for compiling with "gcc -m32" and "gcc -mx32":
         g++-multilib gcc-multilib \

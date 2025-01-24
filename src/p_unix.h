@@ -2,9 +2,9 @@
 
    This file is part of the UPX executable compressor.
 
-   Copyright (C) 1996-2024 Markus Franz Xaver Johannes Oberhumer
-   Copyright (C) 1996-2024 Laszlo Molnar
-   Copyright (C) 2000-2024 John F. Reiser
+   Copyright (C) 1996-2025 Markus Franz Xaver Johannes Oberhumer
+   Copyright (C) 1996-2025 Laszlo Molnar
+   Copyright (C) 2000-2025 John F. Reiser
    All Rights Reserved.
 
    UPX and the UCL library are free software; you can redistribute them
@@ -100,7 +100,7 @@ protected:
     MemBuffer pt_dynamic;
     int sz_dynamic;
 
-    unsigned b_len;  // total length of b_info blocks
+    unsigned b_len;  // total length of b_info blocks  FIXME: unused
     unsigned methods_used;  // bitmask of compression methods
     unsigned szb_info;  // 3*4 (sizeof b_info); or 2*4 if ancient
     unsigned saved_opt_android_shlib;

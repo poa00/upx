@@ -35,16 +35,35 @@ macro(upx_disallow_in_source_build)
     endif()
 endmacro()
 
-# set the default build type; must be called before project() cmake init
+# ternary conditional operator
+macro(upx_ternary result_var_name condition true_value false_value)
+    if(${condition})
+        set(${result_var_name} "${true_value}")
+    else()
+        set(${result_var_name} "${false_value}")
+    endif()
+endmacro()
+
+# set the default build type; must be called BEFORE project() cmake init
 macro(upx_set_default_build_type type)
     set(upx_global_default_build_type "${type}")
     get_property(upx_global_is_multi_config GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
     if(NOT upx_global_is_multi_config AND NOT CMAKE_BUILD_TYPE)
         set(CMAKE_BUILD_TYPE "${upx_global_default_build_type}" CACHE STRING "Choose the type of build." FORCE)
     endif()
+    # also enable some global settings by default
+    if(NOT DEFINED CMAKE_C_STANDARD_REQUIRED)
+        set(CMAKE_C_STANDARD_REQUIRED ON)
+    endif()
+    if(NOT DEFINED CMAKE_CXX_STANDARD_REQUIRED)
+        set(CMAKE_CXX_STANDARD_REQUIRED ON)
+    endif()
+    if(NOT DEFINED CMAKE_EXPORT_COMPILE_COMMANDS)
+        set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+    endif()
 endmacro()
 
-# set the default multi-config build type; must be called after project() cmake init
+# set the default multi-config build type; must be called AFTER project() cmake init
 macro(upx_apply_build_type)
     if(upx_global_is_multi_config)
         set(c "${CMAKE_CONFIGURATION_TYPES}")
@@ -65,12 +84,34 @@ macro(upx_apply_build_type)
     endif()
 endmacro()
 
-# ternary conditional operator
-macro(upx_ternary result_var_name condition true_value false_value)
-    if(${condition})
-        set(${result_var_name} "${true_value}")
+# set MINGW, MSVC_FRONTEND, GNU_FRONTEND and MSVC_SIMULATE
+macro(upx_set_global_vars)
+    if(NOT DEFINED MINGW AND CMAKE_C_PLATFORM_ID MATCHES "^MinGW")
+        set(MINGW 1)
+    endif()
+    if(NOT DEFINED MSVC_FRONTEND AND (MSVC OR CMAKE_C_COMPILER_FRONTEND_VARIANT MATCHES "^MSVC"))
+        set(MSVC_FRONTEND 1)
+    elseif(NOT DEFINED GNU_FRONTEND AND (CMAKE_C_COMPILER_FRONTEND_VARIANT MATCHES "^GNU" OR CMAKE_C_COMPILER_ID MATCHES "(Clang|GNU|LLVM)"))
+        set(GNU_FRONTEND 1)
+    endif()
+    if(NOT DEFINED MSVC_SIMULATE AND (CMAKE_C_SIMULATE_ID MATCHES "^MSVC"))
+        set(MSVC_SIMULATE 1)
+    endif()
+endmacro()
+
+# useful for CI jobs: check for working BUILD_RPATH
+macro(upx_check_working_build_rpath var_name)
+    if(WIN32 OR MINGW OR CYGWIN)
+        # always works; DLLs reside next to the executables
+        set(${var_name} ON)
+        upx_cache_bool_vars(ON ${var_name})
+    elseif(CMAKE_BUILD_WITH_INSTALL_RPATH OR CMAKE_SKIP_RPATH OR CMAKE_SKIP_BUILD_RPATH)
+        # cannot work; BUILD_RPATH is disabled by global CMake settings
+        set(${var_name} OFF)
+        upx_cache_bool_vars(OFF ${var_name})
     else()
-        set(${result_var_name} "${false_value}")
+        # we do not know if/how the BUILD_RPATH is set; be cautious by default
+        upx_cache_bool_vars(OFF ${var_name})
     endif()
 endmacro()
 
@@ -95,6 +136,14 @@ function(upx_make_bool_var result_var_name var_name default_value)
         set(result OFF)
     endif()
     set(${result_var_name} "${result}" PARENT_SCOPE) # return value
+endfunction()
+
+function(upx_maybe_unused_var) # ARGV
+    foreach(var_name ${ARGV})
+        if(DEFINED ${var_name})
+            set(dummy "${${var_name}}")
+        endif()
+    endforeach()
 endfunction()
 
 function(upx_print_var) # ARGV
@@ -233,6 +282,14 @@ function(upx_platform_check_mismatch var_name_1 var_name_2)
     endif()
 endfunction()
 
+# check for incompatible C vs CXX settings
+function(upx_platform_check_c_cxx_mismatch)
+    upx_platform_check_mismatch(CMAKE_C_PLATFORM_ID CMAKE_CXX_PLATFORM_ID)
+    upx_platform_check_mismatch(CMAKE_C_SIMULATE_ID CMAKE_CXX_SIMULATE_ID)
+    upx_platform_check_mismatch(CMAKE_C_COMPILER_ABI CMAKE_CXX_COMPILER_ABI)
+    upx_platform_check_mismatch(CMAKE_C_COMPILER_FRONTEND_VARIANT CMAKE_CXX_COMPILER_FRONTEND_VARIANT)
+endfunction()
+
 #***********************************************************************
 # compilation flags
 #***********************************************************************
@@ -331,6 +388,14 @@ endfunction()
 
 # sanitize a target; note that this may require special run-time support libs from your toolchain
 function(upx_sanitize_target) # ARGV
+    if(NOT DEFINED UPX_CONFIG_SANITIZE_FLAGS_DEBUG)
+        # default sanitizer for Debug builds
+        set(UPX_CONFIG_SANITIZE_FLAGS_DEBUG -fsanitize=undefined -fsanitize-undefined-trap-on-error -fstack-protector-all)
+    endif()
+    if(NOT DEFINED UPX_CONFIG_SANITIZE_FLAGS_RELEASE)
+        # default sanitizer for Release builds
+        set(UPX_CONFIG_SANITIZE_FLAGS_RELEASE -fstack-protector)
+    endif()
     foreach(t ${ARGV})
         if(UPX_CONFIG_DISABLE_SANITIZE)
             # no-op
@@ -348,12 +413,19 @@ function(upx_sanitize_target) # ARGV
             # unsupported compiler; unreliable/broken sanitize implementation before gcc-8 (May 2018)
             message(WARNING "WARNING: ignoring SANITIZE for target '${t}'")
         else()
-            # default sanitizer for Debug builds
-            target_compile_options(${t} PRIVATE $<$<CONFIG:Debug>:-fsanitize=undefined -fsanitize-undefined-trap-on-error -fstack-protector-all>)
-            # default sanitizer for Release builds
-            target_compile_options(${t} PRIVATE $<$<CONFIG:MinSizeRel>:-fstack-protector>)
-            target_compile_options(${t} PRIVATE $<$<CONFIG:Release>:-fstack-protector>)
-            target_compile_options(${t} PRIVATE $<$<CONFIG:RelWithDebInfo>:-fstack-protector>)
+            target_compile_options(${t} PRIVATE $<$<CONFIG:Debug>:${UPX_CONFIG_SANITIZE_FLAGS_DEBUG}>)
+            target_compile_options(${t} PRIVATE $<$<CONFIG:MinSizeRel>:${UPX_CONFIG_SANITIZE_FLAGS_RELEASE}>)
+            target_compile_options(${t} PRIVATE $<$<CONFIG:Release>:${UPX_CONFIG_SANITIZE_FLAGS_RELEASE}>)
+            target_compile_options(${t} PRIVATE $<$<CONFIG:RelWithDebInfo>:${UPX_CONFIG_SANITIZE_FLAGS_RELEASE}>)
+            get_target_property(target_type ${t} TYPE)
+            if(NOT ",${target_type}," STREQUAL ",STATIC_LIBRARY,")
+            if(${CMAKE_VERSION} VERSION_GREATER "3.12.99")
+            target_link_options(${t} PRIVATE $<$<CONFIG:Debug>:${UPX_CONFIG_SANITIZE_FLAGS_DEBUG}>)
+            target_link_options(${t} PRIVATE $<$<CONFIG:MinSizeRel>:${UPX_CONFIG_SANITIZE_FLAGS_RELEASE}>)
+            target_link_options(${t} PRIVATE $<$<CONFIG:Release>:${UPX_CONFIG_SANITIZE_FLAGS_RELEASE}>)
+            target_link_options(${t} PRIVATE $<$<CONFIG:RelWithDebInfo>:${UPX_CONFIG_SANITIZE_FLAGS_RELEASE}>)
+            endif() # CMAKE_VERSION
+            endif() # target_type
         endif()
     endforeach()
 endfunction()

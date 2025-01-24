@@ -3,7 +3,7 @@
 ;
 ;  This file is part of the UPX executable compressor.
 ;
-;  Copyright (C) 2006-2024 Markus Franz Xaver Johannes Oberhumer
+;  Copyright (C) 2006-2025 Markus Franz Xaver Johannes Oberhumer
 ;  All Rights Reserved.
 ;
 ;  UPX and the UCL library are free software; you can redistribute them
@@ -124,6 +124,7 @@ section LZMA_ELF00
 
 #if 1
 // alloca() via lea
+// LZMA_DEC10 or LZMA_DEC20 initializes the Markov matrix (16-bit words) to 0x400 anyway.
                 // CLzmaDecoderState:{*_bits, CProb[LZMA_BASE_SIZE + (LZMA_LIT_SIZE<<%cl)]}
         lea esp,[0 -4 - 2*LZMA_BASE_SIZE + 2*ebx + esp]
         and esp, (~0<<5)  // 32-byte align
@@ -178,7 +179,6 @@ section LZMA_DEC20
 //
 // cleanup
 section LZMA_DEC30
-
 // These are needed only because followed by LEXEC015.  LzmaDecode() has set
 // *O_OUTS, and returned %eax=0 for success, %eax=1 for failure.  Therefore
 // "neg eax" would be enough (followed by clearing %ecx to agree with NRV.)

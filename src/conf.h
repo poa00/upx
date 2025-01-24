@@ -2,8 +2,8 @@
 
    This file is part of the UPX executable compressor.
 
-   Copyright (C) 1996-2024 Markus Franz Xaver Johannes Oberhumer
-   Copyright (C) 1996-2024 Laszlo Molnar
+   Copyright (C) 1996-2025 Markus Franz Xaver Johannes Oberhumer
+   Copyright (C) 1996-2025 Laszlo Molnar
    All Rights Reserved.
 
    UPX and the UCL library are free software; you can redistribute them
@@ -41,8 +41,17 @@
 #if !defined(__has_builtin)
 #define __has_builtin(x) 0
 #endif
+#if !defined(__has_declspec_attribute)
+#define __has_declspec_attribute(x) 0
+#endif
 #if !defined(__has_feature)
 #define __has_feature(x) 0
+#endif
+#if !defined(__has_include)
+#define __has_include(x) 0
+#endif
+#if !defined(__has_warning)
+#define __has_warning(x) 0
 #endif
 
 // reserve name "upx" for namespace
@@ -65,6 +74,9 @@ static_assert((char) (-1) == 255);             // -funsigned-char
 // enable some more strict warnings for Git developer builds
 #if defined(UPX_CONFIG_DISABLE_WSTRICT) && (UPX_CONFIG_DISABLE_WSTRICT + 0 == 0)
 #if defined(UPX_CONFIG_DISABLE_WERROR) && (UPX_CONFIG_DISABLE_WERROR + 0 == 0)
+#if (ACC_CC_MSC)
+#pragma warning(error : 4714) // W4: function marked as __forceinline not inlined
+#endif
 #if (ACC_CC_CLANG >= 0x0b0000)
 #pragma clang diagnostic error "-Wsuggest-override"
 #elif (ACC_CC_GNUC >= 0x0a0000)
@@ -153,10 +165,19 @@ typedef acc_int32_t upx_int32_t;
 typedef acc_uint32_t upx_uint32_t;
 typedef acc_int64_t upx_int64_t;
 typedef acc_uint64_t upx_uint64_t;
+#if (__SIZEOF_INT128__ == 16)
+typedef __int128 upx_int128_t;
+typedef unsigned __int128 upx_uint128_t;
+#endif
 typedef acc_uintptr_t upx_uintptr_t;
-// see CHERI ptraddr_t / vaddr_t
-typedef acc_uintptr_t upx_ptraddr_t;
-typedef acc_intptr_t upx_sptraddr_t;
+#if defined(__PTRADDR_TYPE__) // CHERI
+typedef __PTRADDR_TYPE__ upx_ptraddr_t;
+#else
+typedef upx_uintptr_t upx_ptraddr_t;
+#endif
+typedef std::make_signed_t<upx_ptraddr_t> upx_sptraddr_t; // signed ptraddr_t
+typedef std::make_unsigned_t<ptrdiff_t> upx_uptrdiff_t;   // unsigned ptrdiff_t
+typedef std::make_signed_t<size_t> upx_ssize_t;           // signed size_t
 
 // UPX convention: use "byte" when dealing with data; use "char/uchar" when dealing
 // with strings; use "upx_uint8_t" when dealing with small integers
@@ -172,7 +193,11 @@ struct alignas(1) upx_charptr_unit_type final { char hidden__; };
 static_assert(sizeof(upx_charptr_unit_type) == 1);
 
 // using the system off_t was a bad idea even back in 199x...
-typedef upx_int64_t upx_off_t;
+#if (__SIZEOF_INT128__ == 16) && 0
+typedef upx_int128_t upx_off_t;
+#else
+typedef long long upx_off_t;
+#endif
 #undef off_t
 #if 0
 // TODO later cleanup: at some future point we can do this:
@@ -347,8 +372,8 @@ typedef upx_int64_t upx_off_t;
 
 // for no-op debug output
 inline void NO_printf(const char *, ...) noexcept attribute_format(1, 2);
-inline void NO_fprintf(FILE *, const char *, ...) noexcept attribute_format(2, 3);
 inline void NO_printf(const char *, ...) noexcept {}
+inline void NO_fprintf(FILE *, const char *, ...) noexcept attribute_format(2, 3);
 inline void NO_fprintf(FILE *, const char *, ...) noexcept {}
 
 #if __has_builtin(__builtin_memcmp)
@@ -456,12 +481,12 @@ noreturn void throwAssertFailed(const char *expr, const char *file, int line, co
 // C++ support library
 #include "util/cxxlib.h"
 using upx::tribool;
-#define usizeof(expr)    (upx::UnsignedSizeOf<sizeof(expr)>::value)
-#define ALIGN_DOWN(a, b) (upx::align_down((a), (b)))
-#define ALIGN_UP(a, b)   (upx::align_up((a), (b)))
-#define ALIGN_GAP(a, b)  (upx::align_gap((a), (b)))
-#define UPX_MAX(a, b)    (upx::max((a), (b)))
-#define UPX_MIN(a, b)    (upx::min((a), (b)))
+#define usizeof(expr)      (upx::UnsignedSizeOf<sizeof(expr)>::value)
+#define ALIGN_DOWN(a, b)   (upx::align_down((a), (b)))
+#define ALIGN_UP(a, b)     (upx::align_up((a), (b)))
+#define ALIGN_UP_GAP(a, b) (upx::align_up_gap((a), (b)))
+#define UPX_MAX(a, b)      (upx::max((a), (b)))
+#define UPX_MIN(a, b)      (upx::min((a), (b)))
 
 /*************************************************************************
 // constants
@@ -845,5 +870,7 @@ int upx_test_overlap       ( const upx_bytep buf,
 // xspan
 #include "util/raw_bytes.h"
 #include "util/xspan.h"
+//
+#include "util/system_check_predefs.h"
 
 /* vim:set ts=4 sw=4 et: */

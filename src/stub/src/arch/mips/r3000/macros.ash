@@ -3,7 +3,7 @@
 ;
 ;  This file is part of the UCL data compression library.
 ;
-;  Copyright (C) 1996-2024 Markus Franz Xaver Johannes Oberhumer
+;  Copyright (C) 1996-2025 Markus Franz Xaver Johannes Oberhumer
 ;  All Rights Reserved.
 ;
 ;  The UCL library is free software; you can redistribute it and/or
@@ -30,6 +30,9 @@
 ;
  */
 
+#ifndef _MR3K_MACROS_ASH  /*{*/
+#define _MR3K_MACROS_ASH 1
+
 .macro  section name
         .section \name,"ax"
         .align  0
@@ -48,9 +51,13 @@
 #define a2      $6
 #define a3      $7
 #define t0      $8
+  #define a4 t0
 #define t1      $9
+  #define a5 t1
 #define t2      $10
+  #define a6 t2
 #define t3      $11
+  #define a7 t3
 #define t4      $12
 #define t5      $13
 #define t6      $14
@@ -91,3 +98,51 @@
 #else
 #   define PRINT(str)   .print str
 #endif
+
+.macro call dst
+    bal \dst  /* WARNING: delay slot */
+.endm
+.macro ret
+    jr ra  /* WARNING: delay slot */
+.endm
+
+.macro PUSH4 p1,p2,p3,p4
+    addiu sp,-4*NBPW
+    sw \p1,0*NBPW(sp)
+    sw \p2,1*NBPW(sp)
+    sw \p3,2*NBPW(sp)
+    sw \p4,3*NBPW(sp)
+.endm
+.macro POP4 p1,p2,p3,p4
+    lw \p1,0*NBPW(sp)
+    lw \p2,1*NBPW(sp)
+    lw \p3,2*NBPW(sp)
+    lw \p4,3*NBPW(sp)
+    addiu sp,4*NBPW
+.endm
+.macro PUSH3 p1,p2,p3
+    addiu sp,-3*NBPW
+    sw \p1,0*NBPW(sp)
+    sw \p2,1*NBPW(sp)
+    sw \p3,2*NBPW(sp)
+.endm
+.macro POP3 p1,p2,p3
+    lw \p1,0*NBPW(sp)
+    lw \p2,1*NBPW(sp)
+    lw \p3,2*NBPW(sp)
+    addiu sp,3*NBPW
+.endm
+.macro POP2 p1,p2
+    lw \p1,0*NBPW(sp)
+    lw \p2,1*NBPW(sp)
+    addiu sp,2*NBPW
+.endm
+.macro PUSH1 p1
+    addiu sp,-1*NBPW
+    sw \p1,0*NBPW(sp)
+.endm
+.macro POP1 p1
+    lw \p1,0*NBPW(sp)
+    addiu sp,1*NBPW
+.endm
+#endif  /*} _MR3K_MACROS_ASH */

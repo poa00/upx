@@ -2,9 +2,9 @@
 *
 *  This file is part of the UPX executable compressor.
 *
-*  Copyright (C) 1996-2024 Markus Franz Xaver Johannes Oberhumer
-*  Copyright (C) 1996-2024 Laszlo Molnar
-*  Copyright (C) 2000-2024 John F. Reiser
+*  Copyright (C) 1996-2025 Markus Franz Xaver Johannes Oberhumer
+*  Copyright (C) 1996-2025 Laszlo Molnar
+*  Copyright (C) 2000-2025 John F. Reiser
 *  All Rights Reserved.
 *
 *  UPX and the UCL library are free software; you can redistribute them
@@ -310,8 +310,6 @@ lxlzma_retval   = lxlzma_srcdone
         jr ra
           nop
 
-
-lzma_decode:
   section LZMA_DEC20
 #if 1  /*{*/
 #include "arch/mips/r3000/lzma_d.S"

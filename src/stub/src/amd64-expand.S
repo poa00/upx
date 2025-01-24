@@ -31,13 +31,9 @@
 ;
 */
 
-#include "arch/amd64/regs.h"
 NBPW= 8
-
-.macro          section name
-                .section \name,"ax"
-                .code64
-.endm
+#include "arch/amd64/regs.h"
+#include "arch/amd64/macros.S"
 
 /* AMD64 branch prediction is much worse if there are more than 3 branches
    per 16-byte block.  The jnextb would suffer unless inlined.  getnextb is OK
@@ -55,7 +51,7 @@ NBPW= 8
 #define GETBITp \
         addl bits,bits; jnz 0f; \
         movl (%rsi),bits; sub $-4,%rsi; \
-        adcl bits,bits; movb (%rsi),%dl; \
+        adcl bits,bits; movzbl (%rsi),%edx; \
 0:
 /* Same, but without prefetch (not useful for length of match.) */
 #define jnextb0n jnextb0y
@@ -81,9 +77,12 @@ f_expand: .globl f_expand   // start of code for actual de-compressor
         push %rbp; mov %rsp,%rbp; push %rbx  // MATCH_50  C saved registers
 
 // Calling sequence registers
-#define fx_src %rdi
+#define fx_src %rdi  /* includes b_info for .b_method, .b_ftid, .b_cto8 */
 #define fx_dst %rsi
 #define fx_dstlen %rdx
+#define meth  %r8d
+#define methb %r8b
+
 
 sz_unc= 0
 sz_cpr= 4
@@ -119,7 +118,6 @@ unfilter:
 #define len  %ecx  /* XXX: 2GB */
 #define lenq %rcx
 #define bits %ebx
-#define methb %dl  /* input only */
 #define src %rsi
 #define dst %rdi
 #define displ %ebp
@@ -127,7 +125,7 @@ unfilter:
 
 decompress:  // (fx_src= &b_info, fx_dst= dst, fx_dstlen= &dstlen)
     push fx_dstlen  // MATCH_51
-    movzbl b_method(fx_src),%edx  // methb; for choosing decompression method
+    movzbl b_method(fx_src),meth  // daisy chain by decompression method
     push fx_src; push fx_dst
     pop  dst;    pop  src
     mov sz_cpr(src),%eax; add $sz_binfo,src  // done with b_info; ready for movsb, lodsb
@@ -137,34 +135,35 @@ decompress:  // (fx_src= &b_info, fx_dst= dst, fx_dstlen= &dstlen)
         xor bits,bits  // empty; force refill
         xor len,len  // create loop invariant
         orq $(~0),dispq  // -1: initial displacement
-        jmp setup
+        jmp go_meth
 
 refill:
         movl (%rsi),bits; sub $-4,%rsi  // next 32 bits; set Carry
         adcl bits,bits  // LSB= 1 (CarryIn); CarryOut= next bit
-        movb (%rsi),%dl  // speculate: literal, or bottom 8 bits of offset
+        movzbl (%rsi),%edx  // speculate: literal, or bottom 8 bits of offset
         rep; ret
 getbit:
+        endbr64  // from "call *%rdx"
         addl bits,bits; jz refill  // Carry= next bit
         rep; ret
 
 copy:  // In: len, %rdi, dispq;  Out: 0==len, %rdi, dispq;  trashes %rax, %rdx
         lea (%rdi,dispq),%rax; cmpl $5,len  // <=3 is forced
-        movb (%rax),%dl; jbe copy1  // <=5 for better branch predict
+        movzbl (%rax),%edx; jbe copy1  // <=5 for better branch predict
         cmpl $-4,displ;   ja  copy1  // 4-byte chunks would overlap
         subl $4,len  // adjust for termination cases
 copy4:
         movl (%rax),%edx; add $4,      %rax; subl $4,len
         movl %edx,(%rdi); lea  4(%rdi),%rdi; jnc copy4
-        addl $4,len; movb (%rax),%dl; jz copy0
+        addl $4,len; movzbl (%rax),%edx; jz copy0
 copy1:
         inc %rax; movb %dl,(%rdi); dec len
-            movb (%rax),%dl
+            movzbl (%rax),%edx
                 lea 1(%rdi),%rdi;  jnz copy1
 copy0:
         rep; ret
 
-setup:
+go_meth:
         cld
 
 #define M_NRV2B_LE32    2
@@ -173,14 +172,23 @@ setup:
 #define M_CL1B_LE32     11
 #define M_LZMA          14
 
+// Daisy chain of decoding methods that were used
+#define NO_METHOD_CHECK 1  /* subsumed here by daisy chain */
+
   section NRV2E
+    cmp $M_NRV2E_LE32,meth; jne not_nrv2e
 #include "arch/amd64/nrv2e_d.S"
+not_nrv2e:
 
   section NRV2D
+    cmp $M_NRV2D_LE32,meth; jne not_nrv2d
 #include "arch/amd64/nrv2d_d.S"
+not_nrv2d:
 
   section NRV2B
+    cmp $M_NRV2B_LE32,meth; jne not_nrv2b
 #include "arch/amd64/nrv2b_d.S"
+not_nrv2b:
 
 #undef off
 #undef len
@@ -189,15 +197,31 @@ setup:
 #undef displ
 #undef dispq
 
+section LZMA_DAISY
+    cmp $M_LZMA,meth; jne not_lzma
+
+section LZMA_ELF00  // prefix for parameter juggling
+        push dst; push src  // MATCH_60
+#define arg2d esi
+        mov sz_cpr - sz_binfo(src),%arg2d
 #undef src
 #undef dst
-#undef methb
+        mov fx_dstlen,%arg4
+        pop %arg1; pop %arg3  // MATCH_60
 
-/* lzma has its own 'section's */
 #include "arch/amd64/lzma_d.S"
+not_lzma:
 
   section EXP_TAIL
-eof:
+// Fall through: daisy chain had no matching method
+        mov meth,%ecx  // b_method as __NR__
+        or $~0,%eax  // "errno"
+        int3; hlt  // no method
+
+eof_lzma:
+eof_n2b:
+eof_n2d:
+eof_n2e:
         pop %rax  // MATCH_53 dst_orig
         sub %rax,%rdi  // dst -= original dst
         pop %rax  // MATCH_52 src_EOF
@@ -205,3 +229,7 @@ eof:
         movl %edi,(%rcx)  // actual length used at dst  XXX: 4GB
         sub %rsi,%rax  // src -= eof;  // return 0: good; else: bad
         ret
+
+        .balign 4
+upx_mmap_and_fd: .globl upx_mmap_and_fd
+    // UMF_LINUX goes here

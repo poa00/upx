@@ -2,8 +2,8 @@
 
    This file is part of the UPX executable compressor.
 
-   Copyright (C) 1996-2024 Markus Franz Xaver Johannes Oberhumer
-   Copyright (C) 1996-2024 Laszlo Molnar
+   Copyright (C) 1996-2025 Markus Franz Xaver Johannes Oberhumer
+   Copyright (C) 1996-2025 Laszlo Molnar
    All Rights Reserved.
 
    UPX and the UCL library are free software; you can redistribute them
@@ -739,6 +739,9 @@ static int do_option(int optc, const char *arg) {
     case 677:
         opt->o_unix.force_pie = true;
         break;
+    case 678:
+        opt->o_unix.android_old = true;
+        break;
     // ps1/exe
     case 670:
         opt->ps1_exe.boot_only = true;
@@ -953,6 +956,7 @@ int main_get_options(int argc, char **argv) {
         {"preserve-build-id", 0, N, 675},
         {"android-shlib", 0, N, 676},
         {"force-pie", 0x90, N, 677},
+        {"android-old", 0, N, 678},
         // ps1/exe
         {"boot-only", 0x90, N, 670},
         {"no-align", 0x90, N, 671},
@@ -1211,6 +1215,7 @@ int upx_main(int argc, char *argv[]) may_throw {
     }
 
     // Allow serial re-use of upx_main() as a subroutine
+    exit_code = EXIT_OK;
     opt->reset();
 
 #if (ACC_OS_CYGWIN || ACC_OS_DOS16 || ACC_OS_DOS32 || ACC_OS_EMX || ACC_OS_TOS || ACC_OS_WIN16 ||  \
@@ -1313,8 +1318,10 @@ int upx_main(int argc, char *argv[]) may_throw {
 
     /* start work */
     set_term(stdout);
-    if (do_files(i, argc, argv) != 0)
+    if (do_files(i, argc, argv) != 0) {
+        assert(exit_code != 0);
         return exit_code;
+    }
 
     if (gitrev[0]) {
         // also see UPX_CONFIG_DISABLE_GITREV in CMakeLists.txt

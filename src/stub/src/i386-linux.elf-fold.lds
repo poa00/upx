@@ -2,7 +2,7 @@
 
    This file is part of the UPX executable compressor.
 
-   Copyright (C) 2000-2024 John F. Reiser
+   Copyright (C) 2000-2025 John F. Reiser
    All Rights Reserved.
 
    UPX and the UCL library are free software; you can redistribute them
@@ -30,20 +30,8 @@
 
 OUTPUT_FORMAT("elf32-i386", "elf32-i386", "elf32-i386")
 OUTPUT_ARCH(i386)
-/*ENTRY(_start)*/
-PHDRS
-{
-    text PT_LOAD FILEHDR PHDRS ;
-    data PT_LOAD ;  /* for setting brk(0) */
-}
+
 SECTIONS
 {
-  /*  0x00c01000: 12 MiB + 4 KiB for Fedora Core 5 vDSO at 0xc00000 */
-  . = 0x00c01000 + SIZEOF_HEADERS + 12;  /* 12==sizeof(l_info) */
-  .text : {
-    *(.text)
-    *(.data)
-  } : text
-  .data : {
-  } : data
+  . = SIZEOF_HEADERS;
 }

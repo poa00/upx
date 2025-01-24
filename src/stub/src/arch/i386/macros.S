@@ -3,8 +3,8 @@
 ;
 ;  This file is part of the UPX executable compressor.
 ;
-;  Copyright (C) 1996-2024 Markus Franz Xaver Johannes Oberhumer
-;  Copyright (C) 1996-2024 Laszlo Molnar
+;  Copyright (C) 1996-2025 Markus Franz Xaver Johannes Oberhumer
+;  Copyright (C) 1996-2025 Laszlo Molnar
 ;  All Rights Reserved.
 ;
 ;  UPX and the UCL library are free software; you can redistribute them
@@ -715,6 +715,10 @@ section LXUNF035
         push eax
         push edx
         ret
+.endm
+
+.macro  endbr32
+        .byte 0xf3,0x0f,0x1e,0xfb
 .endm
 
 // vi:ts=8:et:nowrap

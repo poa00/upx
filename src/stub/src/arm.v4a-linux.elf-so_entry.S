@@ -4,7 +4,7 @@
 *
 *  Copyright (C) 1996-2021 Markus Franz Xaver Johannes Oberhumer
 *  Copyright (C) 1996-2021 Laszlo Molnar
-*  Copyright (C) 2000-2024 John F. Reiser
+*  Copyright (C) 2000-2025 John F. Reiser
 *  All Rights Reserved.
 *
 *  UPX and the UCL library are free software; you can redistribute them
@@ -33,10 +33,12 @@ NBPW= 4
 //#define ARM_OLDABI 1
 #define ARMEL_EABI4 1
 #include "arch/arm/v5a/macros.S"
-#define DEBUG 0
+#define call bl
 
+#define DEBUG 0
 #define bkpt .long 0xe7f001f0  /* reserved instr; Linux GNU eabi breakpoint */
 #define bkpt_th .short 0xde01  /* reserved instr; Linux GNU eabi breakpoint */
+
 // As of 2023-02-04, "gcc (Debian 10.2.1-6) 10.2.1 20210110" assembles 0xbe10 for:
 //      asm("bkpt #0x10");
 // and a RaspberryPi v2 (32-bit only) running Linux executes as an infinite loop
@@ -68,6 +70,8 @@ PAGE_MASK=  (~0<<PAGE_SHIFT)
 PAGE_SIZE= -PAGE_MASK
 
 __NR_open=       5 + __NR_SYSCALL_BASE
+  AT_FDCWD= -100
+  RD_ONLY= 0
 __NR_close=      6 + __NR_SYSCALL_BASE
 __NR_exit =      1 + __NR_SYSCALL_BASE
 __NR_memfd_create= 0x181 + __NR_SYSCALL_BASE  // 385
@@ -75,6 +79,28 @@ __NR_mmap64 = 0xc0 + __NR_SYSCALL_BASE
 __NR_mprotect =125 + __NR_SYSCALL_BASE
 __NR_munmap =   91 + __NR_SYSCALL_BASE
 __NR_write =     4 + __NR_SYSCALL_BASE
+
+__NR_SYSCALL_BASE = 0
+
+__NR_close=     6 + __NR_SYSCALL_BASE
+__NR_exit=      1 + __NR_SYSCALL_BASE
+__NR_fdatasync=148 + __NR_SYSCALL_BASE
+__NR_fsync=   118 + __NR_SYSCALL_BASE
+__NR_ftruncate=93 + __NR_SYSCALL_BASE
+__NR_getpid=   20 + __NR_SYSCALL_BASE
+__NR_lseek=    19 + __NR_SYSCALL_BASE
+__NR_memfd_create= 385 + __NR_SYSCALL_BASE
+__NR_mkdir=    39 + __NR_SYSCALL_BASE
+__NR_mmap2=   192 + __NR_SYSCALL_BASE
+__NR_mprotect=125 + __NR_SYSCALL_BASE
+__NR_msync=   144 + __NR_SYSCALL_BASE  // 0x90
+__NR_open=      5 + __NR_SYSCALL_BASE
+__NR_openat=  322 + __NR_SYSCALL_BASE
+__NR_read=      3 + __NR_SYSCALL_BASE
+__NR_stat=    106 + __NR_SYSCALL_BASE
+__NR_uname=   122 + __NR_SYSCALL_BASE
+__NR_unlink=   10 + __NR_SYSCALL_BASE
+__NR_write=     4 + __NR_SYSCALL_BASE
 
 __ARM_NR_BASE  = 0xf0000 + __NR_SYSCALL_BASE
 __ARM_NR_cacheflush =  2 + __ARM_NR_BASE
@@ -133,13 +159,9 @@ _=-1+_  // one less word on stack
 
         //.arch armv7-a
         //.syntax unified
-        .thumb
-        .thumb_func
         .type _start,%function
         .balign 4
-_start: .globl _start  // in Thumb mode  (via PackLinuxElf32::pack3)
-        bx pc; nop  // but switch to ARM until debugged
-        .arm
+_start: .globl _start
         nop
 #if 0|DEBUG  //{
         bkpt  // DEBUG
@@ -147,71 +169,76 @@ _start: .globl _start  // in Thumb mode  (via PackLinuxElf32::pack3)
         // argc,argv,envp, r3 convenience, r4-r7 callee-saved, lr ret_addr
         stmfd sp!,{r0,r1,r2, r3, r4,r5,r6,r7, lr}  // MATCH_99
 
-        sub sp,sp,#2*NBPW  // space for ADRU, LENU
+        sub sp,sp,#F_ARGC  // space for ADRU, LENU, PMASK
 F_ADRU= 0 * NBPW
 F_LENU= 1 * NBPW
-F_ARGC= 2 * NBPW
+F_PMASK=2 * NBPW
+F_ARGC= 3 * NBPW
 
         call4 L70
 L70_ret:
     foldi   .req lr  // &fold_info
-    old_sp  .req r5  // busy: lr,r5
-        mov old_sp,sp
+    mfd     .req r7
+    rPMASK  .req r6  // PAGE_MASK
+
         ldr r0,[foldi,#sz_unc]
-        str r0,[old_sp,#F_LENU]
-        sub r0,sp,r0  // alloca
-        and sp,r0,#-2*NBPW  // align stack
+        str r0,[sp,#F_LENU]
+        ldr r7,[foldi,#sz_cpr]  // srclen
+        add r4,foldi,#sz_b_info  // src
+    .unreq foldi
 
-        add arg4,old_sp,#F_LENU  // &dstlen
-        mov arg3,sp  // dst for decompress
-        ldr arg2,[foldi,#sz_cpr]  // srclen
-        add arg1,foldi,#sz_b_info  // src
-    .unreq foldi  // busy: r5
-        bl f_decompress
+        mov arg3,#0  // pathname
+        mov arg2,r0  // sz_unc
+        mov arg1,#0  // any page address
+        call upx_mmap_and_fd
+        add arg4,sp,#F_LENU  // &dstlen
+        mov arg3,r0,lsr #12
+        mov arg3,arg3,lsl #12  // dst for decompress
+        str arg3,[sp,#F_ADRU]
+        mov arg2,r7  // srclen
+          sub mfd,r0,arg3
+          sub mfd,mfd,#1  // mfd
+        mov arg1,r4  // src
+        call f_decompress; cmp r0,#0; beq 0f; bkpt; 0:
 
-    mfd     .req r6  // busy: r6,r5
-O_RDWR= 2
-O_DIRECTORY= 040000
-O_TMPFILE= 020000000
-
-        bl L110
-        .word O_RDWR | O_DIRECTORY | O_TMPFILE
-        .word 0700
-        .asciz "/dev/shm"; .balign 4
-L110:
-        mov r0,lr
-        ldmia r0!,{r1,r2}
-        do_sys7t2 __NR_open; mov mfd,r0
-
-        mov arg2,sp
-        ldr arg3,[old_sp,#F_LENU]
-        do_sys __NR_write
-        mov sp,old_sp  // de-alloca
-    .unreq old_sp  // busy: r6(mfd)
+        ldr arg3,[sp,#F_LENU]
+        ldr arg2,[sp,#F_ADRU]
+        mov arg1,mfd
+        str rPMASK,[arg2,#0]  // forward the PAGE_MASK
+        call write; cmp r0,arg3; beq 0f; bkpt; 0:
 
         mov arg6,#0  // beginning of file
         mov arg5,mfd
-        mov arg4,#MAP_PRIVATE  // modes
+        mov arg4,#MAP_PRIVATE|MAP_FIXED  // modes
         mov arg3,#PROT_READ|PROT_EXEC  // prot
         ldr arg2,[sp,#F_LENU]
-        mov arg1,#0  // addr (kernel chooses)
-        do_sys __NR_mmap64; str r0,[sp,#F_ADRU]
+        ldr arg1,[sp,#F_ADRU]  // addr
+        do_sys __NR_mmap2; ldr arg3,[sp,#F_ADRU]; cmp r0,arg3; beq 0f; bkpt; 0:
 
         mov arg1,mfd
-    .unreq mfd  // busy: empty
-        do_sys __NR_close
+    .unreq mfd
+        call close
 
-        adr r0,_start -4 *NBPW  // &SO_INFO
-        add r1,sp,#F_ARGC
-        ldr pc,[sp, #F_ADRU]  // invoke folded code
-
-devshm:
-        .asciz "/dev/shm"; .balign 4
+        add arg2,sp,#F_ARGC
+        adr arg1,_start -4 *NBPW  // &SO_INFO
+        ldr arg3,[sp, #F_ADRU]
+        add pc,arg3,#3*NBPW  // invoke de-compressed code
 
 f_decompress:
-#define LINUX_ARM_CACHEFLUSH 1
+#undef LINUX_ARM_CACHEFLUSH  /* handled by write()+mmap() */
 #include "arch/arm/v4a/nrv2b_d8.S"
 
+        src .req r0
+        dst .req r2
+        tmp .req r3
+//eof_n2b: .globl eof_n2b
+// end of a compressed extent
+        POP {tmp}  // &input_eof
+        mov r0,src; SUB2 r0,tmp  // src -= eof;  // return 0: good; else: bad
+        POP {tmp}  // original dst
+        POP {r1}; SUB2 dst,tmp  // dst -= original dst
+        POP {tmp}; str dst,[tmp]  // actual length used at dst  XXX: 4GB
+        ret
 //%esp:
 //  MATCH_04  ptr unfolded_code
 //  MATCH_10  len unfolded_code
@@ -219,10 +246,123 @@ f_decompress:
 //  MATCH_01  argv
 //  MATCH_07  envp
 
+// get_page_mask should never be called by so_entry, because the 1st arg
+// (the pointer) to upx_mmap_and_fd is 0.  But in the general case
+// there must be a get_page_mask subroutine.  Return something plausible.
+get_page_mask: .globl get_page_mask
+        mvn r0,#0
+        mov r0,r0,lsl #12
+        ret
+
+upx_mmap_and_fd: .globl upx_mmap_and_fd
+        // UMF_LINX or UMF_ANDROID goes here
+
 // IDENTSTR goes here
 
   section ELFMAINZ
+get_upxfn_path: .globl get_upxfn_path  // char * (*)(void)
+        mov r0,#0  // persistence not desired
+        ret
+
+memcpy: .globl memcpy  // void *memcpy(void *dst, void const *src, size_t len)
+        cmp r2,#0; beq 9f
+        mov r12,r0  // original dst
+0:
+        ldrb r3,[r1],#1; subs  r2,r2,#1
+        strb r3,[r0],#1; bne 0b
+9:
+        mov r0,r12  // return original dst
+        ret
+
+memset: .globl memset  // (dst, val, n)
+        cmp r2,#0; beq 9f
+        mov r12,r0  // original dst
+0:
+        strb r1,[r0],#1
+        subs r2,r2,#1
+        bne 0b
+9:
+        mov r0,r12  // return original dst
+        ret
+
+mempcpy: .globl mempcpy  // (dst, src, n)
+        cmp r2,#0; beq 9f
+0:
+        ldrb r3,[r1],#1; subs r2,r2,#1
+        strb r3,[r0],#1; bne 0b
+9:
+        ret  // updated dst
+
+// These Linux system calls are called from upxfd_android.c
+// in order to work around problems with memfd_create and ftruncate on Android.
+// Because called from C, then r7 is live; cannot use do_sys7t.
+.globl memfd_create; memfd_create: do_sys2 __NR_memfd_create; ret
+.globl close;     close:     do_sys __NR_close; ret
+.globl exit;      exit:      do_sys __NR_exit; ret
+.globl fdatasync; fdatasync: do_sys __NR_fdatasync; ret
+.globl fsync;     fsync:     do_sys __NR_fsync; ret
+.globl ftruncate; ftruncate: do_sys __NR_ftruncate; ret
+.globl getpid;    getpid:    do_sys __NR_getpid; ret
+.globl lseek;     lseek:     do_sys __NR_lseek; ret
+.globl mkdir;     mkdir:     do_sys __NR_mkdir; ret
+.globl open;      open:      do_sys __NR_open; ret
+.globl openat;    openat:    do_sys2 __NR_openat; ret
+.globl read;      read:      do_sys __NR_read; ret
+.globl stat;      stat:      do_sys __NR_stat; ret
+.globl uname;     uname:     do_sys __NR_uname; ret
+.globl unlink;    unlink:    do_sys __NR_unlink; ret
+.globl write;     write:     do_sys __NR_write; ret
+
+        .globl my_bkpt
+my_bkpt:
+        bkpt  // my_bkpt
+        ret
+
+// __NR_oldmmap gets ENOSYS!  Must use __NR_mmap2 with all args in registers
+// Called from C (5th and 6th arg on stack), so must preserve r4 and r5
+mmap: .globl mmap
+        stmdb sp!,{r4,r5,lr}  // called from C: only 4 args in registers
+        ldr arg6,[sp,#4*NBPW]
+        ldr arg5,[sp,#3*NBPW]
+        mov arg6,arg6,lsr #12  @ FIXME?  convert to page offset in file
+mmap_do: // sp: saved r4,r5,lr
+        bic r12,arg1,rPMASK  // lo frag
+        sub arg1,arg1,r12  // page align lo end
+        add arg2,arg2,r12
+        do_sys __NR_mmap2
+        ldmia sp!,{r4,r5,pc}
+
+psa:    .asciz "/proc/self/auxv"; .balign 4
 L70:
+BUFLEN= 512
+mfd .req r5
+        sub sp,sp,#BUFLEN
+        mov r4,lr
+        mov rPMASK,#~0; mov rPMASK,rPMASK,lsl #12  // default PAGE_MASK
+        mov r0,#AT_FDCWD
+        adr r1,psa
+        mov r2,#0
+        call openat; mov mfd,r0; tst r0,r0; bmi no_psa
+        mov r2,#BUFLEN
+        mov r1,sp
+        mov r0,mfd
+        call read; tst r0,r0; bmi no_psa1
+        mov r1,sp
+0:
+        ldr r2,[r1],#2*NBPW
+AT_PAGESZ= 6
+        subs r2,r2,#AT_PAGESZ; beq 9f
+        subs r0,r0,#2*NBPW; beq no_psa1; b 0b
+9:
+        ldr rPMASK,[r1,#-NBPW]
+        sub rPMASK,r2,rPMASK
+no_psa1:
+        mov r0,mfd; call close
+.unreq mfd
+no_psa:
+        add sp,sp,#BUFLEN
+        str rPMASK,[sp,#F_PMASK]
+
         call4 L70_ret
 fold_info:
 //  b_info (sz_unc, sz_cpr, method) of folded code (C-language, etc.)

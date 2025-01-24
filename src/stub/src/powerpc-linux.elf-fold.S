@@ -2,9 +2,9 @@
 *
 *  This file is part of the UPX executable compressor.
 *
-*  Copyright (C) 1996-2024 Markus Franz Xaver Johannes Oberhumer
-*  Copyright (C) 1996-2024 Laszlo Molnar
-*  Copyright (C) 2000-2024 John F. Reiser
+*  Copyright (C) 1996-2025 Markus Franz Xaver Johannes Oberhumer
+*  Copyright (C) 1996-2025 Laszlo Molnar
+*  Copyright (C) 2000-2025 John F. Reiser
 *  All Rights Reserved.
 *
 *  UPX and the UCL library are free software; you can redistribute them
@@ -61,7 +61,7 @@ SZ_FRAME= SZ_LINKA
 
 // In:
 r_exp=   31  // f_exp == &decompress
-r_PMASK= 30  // PAGE_MASK
+  r_buf= 30
 r_ADRU=  29  // &base to unmap
 r_LENU=  28  // length to unmap
 r_fd=    27  // open fd of /proc/self/exe
@@ -71,17 +71,17 @@ r_ADRX=  24  // compressed input
 r_LENX=  23  // total size
 r_FLD=   22
 // Local:
-r_unf=   22  // f_unf == &unfilter()
-av_hi=   21
-av_len=  20
-cblk=    19
-r_buf=   18
-
-        b fold_begin
-        nop
+cblk=    21
+  r_90b=   r_FLD
+r_PMASK= 20  // (in) PAGE_MASK
+av_hi=   19
+av_len=  18
 
 page_mask:
         .int -0x1000  // default page mask (4KiB)
+        .int 0  // something else?
+        b fold_begin
+
         .balign 4
 get_page_mask: .globl get_page_mask
         mflr r0  // retaddr
@@ -91,35 +91,50 @@ get_page_mask: .globl get_page_mask
         blr
 
 Pprotect: .globl Pprotect
-mprotect: .globl mprotect
-        mr a4,a0  // 1st arg
-        mflr a5; call get_page_mask; mtlr a5
-        not r0,a0  // frag mask
-        and t1,a4,r0  // frag
-        sub a0,a4,t1
-        add a1,a1,t1
-        li r0,SYS_mprotect
-        b sysgo
+        mflr r0; bl 0f; 0: mflr r6; mtlr r0; lwz r0,page_mask - 0b(r6)
+        andc r0,a0,r0  // offset within page
+        sub a0,a0,r0
+        add a1,a1,r0
+        b mprotect
+
+Psync: .globl Psync
+        mflr r0; bl 0f; 0: mflr r6; mtlr r0; lwz r0,page_mask - 0b(r6)
+        andc r0,a0,r0  // offset within page
+        sub a0,a0,r0
+        add a1,a1,r0
+        b msync
+
+Pmap: .globl Pmap
+        mflr r0; bl 0f; 0: mflr r6; mtlr r0; lwz r0,page_mask - 0b(r6)
+        andc r0,a0,r0  // offset within page
+        sub a0,a0,r0
+        add a1,a1,r0
+        b mmap
+
+Punmap: .globl Punmap
+        mflr r0; bl 0f; 0: mflr r6; mtlr r0; lwz r0,page_mask - 0b(r6)
+        andc r0,a0,r0  // offset within page
+        sub a0,a0,r0
+        add a1,a1,r0
+        b munmap
 
 fold_begin:
-        mtctr r0  // # words of stuff
+        mtctr r0  // # words before argc  FIXME: fragile
         lwz r0,0(r_FLD)  // O_BINFO | is_ptinterp | unmap_all_pages
         slwi r0,r0,3*4
         mtcrf 0x8,r0  // cr4.eq = unmap_all_pages
         call L90
 L90b:
-#include "arch/powerpc/32/bxx.S"
-L90a:
-L_PFX= 4  // strlen("   =")
         .asciz "   =/proc/self/exe"
+L_PFX= 4  // strlen("   =")
         .balign 4
 L90:
-        mflr r_unf  // L90b = &ppcbxx: f_unfilter
+        mflr r_90b
 // slide {<<stuff>>,argc,argv,0,env,0,auxv} down with maximum room before strings
         la a1,-NBPW(sp)  // src ready for lwzu
     beq cr4,0f; la sp,-(-AL_STK & (-1+ AL_STK + (NBPW + L_PFX + PATH_MAX)))(sp); 0:
         la a0,-NBPW(sp)  // dst ready for stwu
-0: // copy stuff
+0: // copy stuff below argc (count in r0 at fold_begin)
         lwzu r0,NBPW(a1)
         stwu r0,NBPW(a0); bdnz 0b
 
@@ -143,22 +158,22 @@ L90:
 
     beq cr4,no_pse_env
         subf av_len,r_auxv,av_hi  // length of auxv
-        lwz  r0,L90a - L90b(r_unf)  // "    ="
+        lwz  r0,0(r_90b)  // "    ="
         la cblk,NBPW(a1)  // original &strings
         stwu r0,NBPW(a0)
         la  r_buf,L_PFX(a0)  // buffer
 // r_fd = open("/proc/self/exe", O_RDONLY)
         li a1,O_RDONLY
-        la a0,L_PFX+ L90a - L90b(r_unf)  //     "/proc/self/exe"
+        la a0,L_PFX(r_90b)  //     "/proc/self/exe"
         call open; mr r_fd,a0
 // readlink("/proc/self/exe", buffer, -1+ PATH_MAX)
         li a2,-1+ PATH_MAX
         movr a1,r_buf  // buffer
-        la a0,L_PFX+ L90a - L90b(r_unf)  //     "/proc/self/exe"
+        la a0,L_PFX(r_90b)  //     "/proc/self/exe"
         call readlink; la a2,-L_PFX(r_buf)  // a0= len; a2= buffer
         cmpwi a0,0; bgt 0f  // success
-        la a2,L90a - L90b(r_unf)  // "   =/proc/self/exe"
-        li a0,L90  - (NBPW+ L90a)  // round_up(NBPW, strlen("/proc/self/exe"))
+        la a2,0(r_90b)  // "   =/proc/self/exe"
+        li a0,L90  - (NBPW+ L90b)  // round_up(NBPW, strlen("/proc/self/exe"))
 0:
         addi a0,a0,L_PFX
         add a1,a2,a0  // beyond end of path and prefix
@@ -198,14 +213,12 @@ no_pse_env:
         stwu sp,-(SZ_FRAME+OVERHEAD)(sp)  // allocate this frame
         mr a0,r_ADRX  // &b_info
         mr a1,r_LENX  // total_size
-        la a2,SZ_FRAME(sp)  // &Elf32_Ehdr temporary space
+        mr a2,r_elfa  // elfaddr
         mr a3,r_auxv  // &Elf32_auxv_t
-        mr a4,r_exp  // &decompress: f_expand
-        mr a5,r_unf  // &f_unf
-        mr a6,r_elfa  // elfaddr
+        la a4,SZ_FRAME(sp)  // &Elf32_Ehdr temporary space
         call upx_main  // Out: a0= entry
 // entry= upx_main(b_info *a0, total_size a1, Elf32_Ehdr *a2, ELf32_auxv_t *a3,
-//      f_exp a4, f_unf a5, elfaddr a6)
+//      tmp_ehdr[])
 
         la  sp,SZ_FRAME+OVERHEAD(sp)  // deallocate this frame
         mr r_exp,a0  // save &entry
@@ -231,7 +244,7 @@ p_memsz= 5*NBPW
         cmpwi a4,0; blt no_map_pse
         li a3,MAP_PRIVATE
         li a2,PROT_READ
-        neg a1,r_PMASK  // PAGE_SIZE
+        neg a1,r_PMASK  // page_size
         li a0,0  // kernel chooses where
         call mmap
 // close /proc/self/exe
@@ -261,6 +274,8 @@ sz_auxv= 2*NBPW
 
         bctr  // goto escape hatch
 
+  section SYSCALLS
+
 SYS_exit=  1
 SYS_fork=  2
 SYS_read=  3
@@ -272,8 +287,35 @@ SYS_brk=       45
 SYS_readlink=  85
 SYS_mmap=      90
 SYS_munmap=    91
+SYS_ftruncate= 93
 SYS_mprotect= 125
+SYS_msync=    144
+SYS_memfd_create= 360
 
+exit: .globl exit
+        li r0,SYS_exit;     5: b 5f
+brk: .globl brk
+        li r0,SYS_brk;      5: b 5f
+readlink: .globl readlink
+        li r0,SYS_readlink; 5: b 5f
+memfd_create: .globl memfd_create
+        li r0,SYS_memfd_create; b 5f
+ftruncate: .globl ftruncate
+        li r0,SYS_ftruncate;5: b 5f
+close: .globl close
+        li r0,SYS_close;    5: b 5f
+write: .globl write
+        li r0,SYS_write;    5: b 5f
+read: .globl read
+        li r0,SYS_read;     5: b 5f
+open: .globl open
+        li r0,SYS_open;     5: b 5f
+mprotect: .globl mprotect
+        li 0,SYS_mprotect;  5: b 5f
+msync: .globl msync
+        li 0,SYS_msync;     5: b 5f
+munmap: .globl munmap
+        li r0,SYS_munmap;   5: b sysgo
 mmap: .globl mmap
         li r0,SYS_mmap
 sysgo:
@@ -283,22 +325,27 @@ sysgo:
 no_fail:
         ret
 
-exit: .globl exit
-        li r0,SYS_exit;        b 5f
-brk: .globl brk
-        li r0,SYS_brk;      5: b 5f
-readlink: .globl readlink
-        li r0,SYS_readlink; 5: b 5f
-write: .globl write
-        li r0,SYS_write;    5: b 5f
-read: .globl read
-        li r0,SYS_read;     5: b 5f
-open: .globl open
-        li r0,SYS_open;     5: b 5f
-close: .globl close
-        li r0,SYS_close;    5: b 5f
-munmap: .globl munmap
-        li r0,SYS_munmap;   5: b sysgo
+memcpy: .globl memcpy  // (dst, src, n)
+        cmpwi a2,0; beq- 9f
+        mtctr a2
+        subi a3,a0,1
+        subi a1,a1,1
+0:
+        lbzu r0,1(a1)
+        stbu r0,1(a3)
+        bdnz 0b
+9:
+        blr  // return original dst
+
+memset: .globl memset  // (dst, val, n)
+        cmpwi a2,0; beq- 9f
+        mtctr a2
+        subi a3,a0,1
+0:
+        stbu a1,1(a3)
+        bdnz 0b
+9:
+        blr  // return original dst
 
 my_bkpt: .globl my_bkpt
         teq r0,r0  // my_bkpt

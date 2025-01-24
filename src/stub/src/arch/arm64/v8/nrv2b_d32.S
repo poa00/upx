@@ -2,9 +2,9 @@
 
    This file is part of the UPX executable compressor.
 
-   Copyright (C) 1996-2024 Markus Franz Xaver Johannes Oberhumer
-   Copyright (C) 1996-2024 Laszlo Molnar
-   Copyright (C) 2000-2024 John F. Reiser
+   Copyright (C) 1996-2025 Markus Franz Xaver Johannes Oberhumer
+   Copyright (C) 1996-2025 Laszlo Molnar
+   Copyright (C) 2000-2025 John F. Reiser
    All Rights Reserved.
 
    UPX and the UCL library are free software; you can redistribute them
@@ -31,18 +31,6 @@
 
 #include "macros.S"
 
-
-/* macros reduce "noise" when comparing this ARM code to corresponding THUMB code */
-#define ADD2( dst,src) add  dst,dst,src
-#define ADD2S(dst,src) adds dst,dst,src
-#define ADC2( dst,src) adc  dst,dst,src
-#define ADC2S(dst,src) adcs dst,dst,src
-#define SUB2( dst,src) sub  dst,dst,src
-#define SUB2S(dst,src) subs dst,dst,src
-#define LDRB3(reg,psrc,incr) ldrb reg,psrc,incr
-#define LDR3( reg,psrc,incr) ldr  reg,psrc,incr
-#define STRB3(reg,pdst,incr) strb reg,pdst,incr
-
 #undef  GETBIT
 #define GETBIT  bl get1_n2b
 
@@ -67,11 +55,12 @@ off  .req w5
         .type ucl_nrv2b_decompress_32, %function
 /* error = (*)(char const *src, uint32_t len_src, char *dst, uint32_t *plen_dst) */
         add x1,src,len,uxtw  // x1= eof_src;
-        PUSH4(x1,x2,x3, lr)
+        PUSH4(x1,x2,x3, lr)  // MATCH_90
         mov off,#-1  // off= -1 initial condition
         mov bits,#1<<31  // refill next time
         b top_n2b
 
+#if defined(WINDOWS_BACK) || !defined(DAISY_CHAIN)  //{
 eof_n2b:
         POP4(x1,x3,x4, lr)  // x1= eof_src; r3= orig_dst; r4= plen_dst
         SUB2(src,x1)  // 0 if actual src length equals expected length
@@ -81,13 +70,14 @@ eof_n2b:
 
         mov x0,x3  // orig_dst
         add x1,x3,dst  // orig_dst + dst_len
-cache_n2b:
 #ifndef NO_SYNC_CACHE
         sync_cache  // x0= lo; x1= hi; uses x2-x4
 #endif
 
         mov x0,x5  // result value
         ret
+
+#endif  // WINDOWS_BACK  || ! DAISY_CHAIN }
 
 get1_n2b:
         ADD2S(bits,bits); cbz bits,get32_n2b; ret
@@ -130,10 +120,11 @@ copy_n2b:  // copy 1+len bytes
         STRB3(tmp,[dst],#1); bhs copy_n2b
         b top_n2b  // exit with -1==len
 
+
 #ifndef NO_METHOD_CHECK
 not_n2b:
-        # fall into 'eof'
 #endif
+        # fall into daisy chain
     .unreq lr
     .unreq ip0
 

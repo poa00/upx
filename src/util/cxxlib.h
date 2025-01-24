@@ -2,7 +2,7 @@
 
    This file is part of the UPX executable compressor.
 
-   Copyright (C) 1996-2024 Markus Franz Xaver Johannes Oberhumer
+   Copyright (C) 1996-2025 Markus Franz Xaver Johannes Oberhumer
    All Rights Reserved.
 
    UPX and the UCL library are free software; you can redistribute them
@@ -156,7 +156,7 @@ protected:
 // <type_traits>
 **************************************************************************/
 
-// is_bounded_array: identical to C++20 std::is_bounded_array
+// is_bounded_array from C++20
 template <class T>
 struct is_bounded_array : public std::false_type {};
 template <class T, std::size_t N>
@@ -174,13 +174,29 @@ struct is_same_any : public std::disjunction<std::is_same<T, Ts>...> {};
 template <class T, class... Ts>
 inline constexpr bool is_same_any_v = is_same_any<T, Ts...>::value;
 
+// remove_cvref from C++20
+template <class T>
+struct remove_cvref {
+    typedef typename std::remove_cv<typename std::remove_reference<T>::type>::type type;
+};
+template <class T>
+using remove_cvref_t = typename remove_cvref<T>::type;
+
+// type_identity from C++20
+template <class T>
+struct type_identity {
+    typedef T type;
+};
+template <class T>
+using type_identity_t = typename type_identity<T>::type;
+
 /*************************************************************************
 // <bit> C++20
 **************************************************************************/
 
 template <class T>
 forceinline constexpr bool has_single_bit(T x) noexcept {
-    return x != 0 && (x & (x - 1)) == 0;
+    return !(x == 0) && (x & (x - 1)) == 0;
 }
 
 /*************************************************************************
@@ -191,21 +207,30 @@ template <class T>
 inline constexpr T align_down(const T &x, const T &alignment) noexcept {
     // assert_noexcept(has_single_bit(alignment)); // (not constexpr)
     T r = {};
-    r = (x / alignment) * alignment;
+    r = x - (x & (alignment - 1));
+    return r;
+}
+template <class T>
+inline constexpr T align_down_gap(const T &x, const T &alignment) noexcept {
+    // assert_noexcept(has_single_bit(alignment)); // (not constexpr)
+    T r = {};
+    r = x & (alignment - 1);
     return r;
 }
 template <class T>
 inline constexpr T align_up(const T &x, const T &alignment) noexcept {
     // assert_noexcept(has_single_bit(alignment)); // (not constexpr)
     T r = {};
-    r = ((x + (alignment - 1)) / alignment) * alignment;
+    constexpr T zero = {};
+    r = x + ((zero - x) & (alignment - 1));
     return r;
 }
 template <class T>
-inline constexpr T align_gap(const T &x, const T &alignment) noexcept {
+inline constexpr T align_up_gap(const T &x, const T &alignment) noexcept {
     // assert_noexcept(has_single_bit(alignment)); // (not constexpr)
     T r = {};
-    r = align_up(x, alignment) - x;
+    constexpr T zero = {};
+    r = (zero - x) & (alignment - 1);
     return r;
 }
 
@@ -219,8 +244,7 @@ forceinline constexpr T max(const T &a, const T &b) noexcept {
 }
 
 template <class T>
-inline constexpr bool is_uminmax_type =
-    is_same_any_v<T, upx_uint8_t, upx_uint16_t, upx_uint32_t, upx_uint64_t, unsigned long, size_t>;
+inline constexpr bool is_uminmax_type = std::is_integral_v<T> && std::is_unsigned_v<T>;
 
 template <class T, class = std::enable_if_t<is_uminmax_type<T>, T> >
 forceinline constexpr T umin(const T &a, const T &b) noexcept {
@@ -765,8 +789,12 @@ inline void owner_free(OwningPointer(T)(&object)) noexcept {
 #if defined(__clang__) || __GNUC__ != 7
 template <class T>
 inline void owner_delete(T (&array)[]) noexcept DELETED_FUNCTION;
+template <class T>
+inline void owner_free(T (&array)[]) noexcept DELETED_FUNCTION;
 #endif
 template <class T, std::size_t N>
 inline void owner_delete(T (&array)[N]) noexcept DELETED_FUNCTION;
+template <class T, std::size_t N>
+inline void owner_free(T (&array)[N]) noexcept DELETED_FUNCTION;
 
 } // namespace upx

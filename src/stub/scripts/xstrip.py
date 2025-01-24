@@ -5,7 +5,7 @@
 #
 #  This file is part of the UPX executable compressor.
 #
-#  Copyright (C) 1996-2024 Markus Franz Xaver Johannes Oberhumer
+#  Copyright (C) 1996-2025 Markus Franz Xaver Johannes Oberhumer
 #  All Rights Reserved.
 #
 #  UPX and the UCL library are free software; you can redistribute them
@@ -73,6 +73,8 @@ def check_dump(dump_fn):
     psections = d.find("Sections:\n")
     psymbols  = d.find("SYMBOL TABLE:\n")
     prelocs   = d.find("RELOCATION RECORDS FOR ");
+    if prelocs == -1: # no relocations
+        prelocs = len(d)
     assert 0 <= psections < psymbols < prelocs
     # preprocessSections
     sections = []
@@ -139,7 +141,7 @@ def do_file(fn):
     fp.seek(0, 0)
     idata = fp.read()
     if idata[:4] != "\x7f\x45\x4c\x46":
-        raise Exception, "%s is not %s" % (fn, "ELF")
+        raise Exception("%s is not %s" % (fn, "ELF"))
     if idata[4:7] == "\x01\x01\x01":
         # ELF32 LE
         eh, idata = idata[:52], idata[52:]
@@ -162,7 +164,7 @@ def do_file(fn):
         e_shnum, e_shstrndx = struct.unpack(">HH", eh[60:64])
         assert e_shstrndx + 3 == e_shnum
     else:
-        raise Exception, "%s is not %s" % (fn, "ELF")
+        raise Exception("%s is not %s" % (fn, "ELF"))
 
     odata = None
     pos = idata.find("\0.symtab\0.strtab\0.shstrtab\0")
@@ -207,7 +209,7 @@ def main(argv):
         elif opt in ["--with-dump"]: opts.with_dump = optarg
         else: assert 0, ("getopt problem:", opt, optarg, xopts, args)
     if not args:
-        raise Exception, "error: no arguments given"
+        raise Exception("error: no arguments given")
     if opts.with_dump or opts.bindump:
         assert len(args) == 1, "need exactly one file"
     # process arguments

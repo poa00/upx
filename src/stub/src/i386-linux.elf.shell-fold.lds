@@ -2,7 +2,7 @@
 
    This file is part of the UPX executable compressor.
 
-   Copyright (C) 2000-2024 John F. Reiser
+   Copyright (C) 2000-2025 John F. Reiser
    All Rights Reserved.
 
    UPX and the UCL library are free software; you can redistribute them
@@ -30,7 +30,7 @@
 
 OUTPUT_FORMAT("elf32-i386", "elf32-i386", "elf32-i386")
 OUTPUT_ARCH(i386)
-/*ENTRY(_start)*/
+
 PHDRS
 {
   phdr0 PT_LOAD FILEHDR PHDRS FLAGS(5);  /* no PF_W: strict SELinux, PaX, grSecurity */
@@ -39,8 +39,7 @@ PHDRS
 
 SECTIONS
 {
-  /*  0x01400000: avoid 0x01000000 for shell itself being compressed */
-  . = 0x01400000 + SIZEOF_HEADERS;
+  . = SIZEOF_HEADERS;
   . = ALIGN(0x80);
   .data : { /* put everything together in one Phdr */
     *(.text)

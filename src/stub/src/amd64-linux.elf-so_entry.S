@@ -4,7 +4,7 @@
 *
 *  Copyright (C) 1996-2021 Markus Franz Xaver Johannes Oberhumer
 *  Copyright (C) 1996-2021 Laszlo Molnar
-*  Copyright (C) 2000-2024 John F. Reiser
+*  Copyright (C) 2000-2025 John F. Reiser
 *  All Rights Reserved.
 *
 *  UPX and the UCL library are free software; you can redistribute them
@@ -54,14 +54,16 @@ MAP_PRIVATE= 2
 MAP_FIXED=     0x10
 MAP_ANONYMOUS= 0x20
 
+__NR_close=  3
+__NR_exit=  60
 __NR_mmap=      9  // 64-bit mode only!  /usr/include/asm/unistd_64.h
 __NR_mprotect= 10
 __NR_munmap=   11
 __NR_memfd_create= 0x13f  // 319
-
+  MFD_EXEC= 0x10
+__NR_openat=  257
+__NR_read=      0
 __NR_write=  1
-__NR_close=  3
-__NR_exit=  60
 
 PAGE_SHIFT= 12
 PAGE_MASK= (~0<<PAGE_SHIFT)
@@ -91,7 +93,53 @@ _start:
         push %rbx  // MATCH_03  saved register
         push %rbp  // MATCH_02  saved register
         mov %rsp,%rbp
-        call L70  // MATCH_08  push $&getbit
+        lea fold_info(%rip),%rbx
+        lea _start - 4*4(%rip),%rax  // &so_info
+        push %rax  // MATCH_14  &so_info
+
+//        cmpw $M_NRV2B_LE32|(0<<8),b_method(%rbx); je 0f; hlt; 0:  // check method and filter bytes
+
+// De-compress folded code onto the stack
+        movl /*sz_unc*/(%rbx),%eax; push %rax  // MATCH_40  len unfolded code
+        sub %rax,%rsp; and $-2*NBPW,%rsp
+
+AT_PAGESZ= 6
+O_RDONLY= 0
+#define fd_psa r9l
+#define end_aux r8
+        sub %arg3l,%arg3l  // 0 == O_RDONLY
+        lea str_psa(%rip),%arg2
+        sub %arg1l,%arg1l  // 0 == impostor for FD_CWD
+        push $__NR_openat; call do_sys; test %eax,%eax; js no_psa
+        push %rax  // fd_psa
+
+        mov $512,%arg3l  // len
+        lea 1*NBPW(%rsp),%arg2  // buffer
+        pop %arg1; push %arg1  // fd_psa
+        push $__NR_read; call do_sys; lea (%rax,%arg2),%end_aux
+        pop %arg1  // fd_psa
+        push $__NR_close; call do_sys
+        lea 1*NBPW(%rsp),%rsi  // buffer
+0:
+        lodsq; xchg %rax,%rcx  // tag
+        lodsq  // value
+        cmp $AT_PAGESZ,%rcx; je 1f
+        cmp %end_aux,%rsi; jl 0b
+no_psa:
+        mov $1<<12,%eax  // default 4KiB
+1:
+        neg %rax; push %rax  // MATCH_61  PAGE_MASK
+
+// This is nrv2b_d32, inlined and optimized for small space (about 160 bytes).
+// The task is to de-compress the folded pieces for shared library init:
+// the de-compressor(s) of the PT_LOAD pieces, and the C-code supervisor
+// which adjusts the placement and mapping of the address space.
+// The output length is a couple KB for NRV, a few KB for Lzma, 64KB for Zstd.
+// This is motivated by the possibility of using multiple de-compressors
+// depending on the characteristics of each PT_LOAD, and by the increased size
+// and compressability of C-coded de-compressors for Lzma and Zstd
+// in contrast to the simple and small assembly-coded NRV.
+
 /* Working registers */
 #define off  %eax  /* XXX: 2GB */
 #define bits %ebx
@@ -104,39 +152,8 @@ _start:
 #define jnextb0 GETBIT; jnc
 #define jnextb1 GETBIT; jc
 
-/* rotate next bit into bottom bit of reg */
-#define getnextb(reg) GETBIT; adcl reg,reg
-
-getbit:
-        addl bits,bits; jz refill  // Carry= next bit
-        rep; ret  // rep: stop instruction pipeline (spend 1 byte for speed)
-refill:
-        movl (%rsi),bits; subq $-4,%rsi  // next 32 bits; set Carry
-        adcl bits,bits  // LSB= 1 (CarryIn); CarryOut= next bit
-        ret  // infrequent (1/32)
-
-L20:  // %rdx == &getbit
-        pop %rbx  // MATCH_09  &fold_info
-        lea _start - 4*4 - getbit(%rdx),%rax  // &so_info
-        push %rax  // MATCH_14  &so_info
-
-//        cmpw $M_NRV2B_LE32|(0<<8),b_method(%rbx); je 0f; hlt; 0:  // check method and filter bytes
-
-// De-compress folded code onto the stack
-        movl /*sz_unc*/(%rbx),%eax; push %rax  // MATCH_40  len unfolded code
-        sub %rax,%rsp; and $-2*NBPW,%rsp
-
-// This is nrv2b_d32, inlined and optimized for small space (about 160 bytes).
-// The task is to de-compress the folded pieces for shared library init:
-// the de-compressor(s) of the PT_LOAD pieces, and the C-code supervisor
-// which adjusts the placement and mapping of the address space.
-// The output length is a couple KB for NRV, a few KB for Lzma, 64KB for Zstd.
-// This is motivated by the possibility of using multiple de-compressors
-// depending on the characteristics of each PT_LOAD, and by the increased size
-// and compressability of C-coded de-compressors for Lzma and Zstd
-// in contrast to the simple and small assembly-coded NRV.
-
-        push %rsp; pop dst  // &unfolded_code
+        lea getbit(%rip),%rdx
+        lea 1*NBPW(%rsp),dst  // &unfolded_code
         push %rbp  // MATCH_45
         movl    sz_cpr(%rbx),len  // lsrc
         lea  sz_b_info(%rbx),src
@@ -159,7 +176,19 @@ decompress:  // inlined: (uchar const *src, uint len, uchar *dst /*, u32 &ldst, 
         xor len,len  // create loop invariant
         push $~0; pop dispq  // -1: initial displacement
         cld  // paranoia
-        .byte 0xa8  // "testb $... ,%al" ==> "jmp top_n2b"
+        jmp top_n2b
+
+/* rotate next bit into bottom bit of reg */
+#define getnextb(reg) GETBIT; adcl reg,reg
+getbit:
+        endbr64
+        addl bits,bits; jz refill  // Carry= next bit
+        rep; ret  // rep: stop instruction pipeline (spend 1 byte for speed)
+refill:  // infrequent (1/32)
+        movl (%rsi),bits; subq $-4,%rsi  // next 32 bits; set Carry
+        adcl bits,bits  // LSB= 1 (CarryIn); CarryOut= next bit
+        ret
+
 lit_n2b:
         movsb  // *dst++ = *src++;
 top_n2b:
@@ -203,10 +232,21 @@ eof_n2b:
 
         pop %rbp  // MATCH_45
 
-        push $0; pop %arg2
-        call 0f; .asciz "upx"; 0: pop %arg1
-        push $__NR_memfd_create; call do_sys
-
+#define arg2l esi
+// Create anonymous temporary file on mfd; like upxfd_create
+        push $'u'|('p'<<8)|('X'<<16)|(0<<24)  // MATCH_22
+        push %rsp; pop %arg1  // "upX"
+        push $MFD_EXEC; pop %arg2
+0: // try memfd_create
+        movl $__NR_memfd_create,%eax; syscall
+        test %eax,%eax; jns ok_memfd  // success
+        test %arg2l,%arg2l; jz no_memfd  // memfd_create failed twice
+        xor %arg2l,%arg2l; jmp 0b  // try again without MFD_EXEC
+no_memfd:  // so try /dev/shm
+        hlt  // FIXME /dev/shm
+ok_memfd:
+        pop %rcx  // MATCH_22  discard "upx"
+        pop /*0*NBPW*/(%rsp)  // actual PAGE_MASK replaces compiled-in default
         push %rax; pop %arg1  // mfd
         push %rsp; pop %arg2  // buffer
         push %rax  // MATCH_47  save mfd
@@ -228,6 +268,7 @@ eof_n2b:
         push $__NR_close; call do_sys
 
 // %rsp:
+//  MATCH_42  ?  FIXME
 //  MATCH_11  ptr unfolded_code; for escape hatch
 //  MATCH_10  len unfolded code; for escape hatch
 //  MATCH_14  &so_info
@@ -239,6 +280,7 @@ eof_n2b:
 //  MATCH_07  envp
 
         pop %rax; push %rax  // MATCH_11 ptr unfolded code
+        add $2*NBPW,%rax
         jmp *%rax  // enter C code
 
 do_sys: // on-stack parameter: hint on error
@@ -246,12 +288,12 @@ do_sys: // on-stack parameter: hint on error
         cmp $-4096,%rax; jb 0f; int3; 0:
         ret $NBPW
 
+str_psa:
+        .asciz "/proc/self/auxv"
+
 // IDENTSTR goes here
 
   section ELFMAINZ
-L70:
-        pop %rdx  // MATCH_08  &getbit
-        call L20  // MATCH_09  push $&fold_info
 fold_info:
 //  b_info (sz_unc, sz_cpr, method) of folded code (C-language, etc.)
 

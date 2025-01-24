@@ -2,9 +2,9 @@
 
    This file is part of the UPX executable compressor.
 
-   Copyright (C) 1996-2024 Markus Franz Xaver Johannes Oberhumer
-   Copyright (C) 1996-2024 Laszlo Molnar
-   Copyright (C) 2000-2024 John F. Reiser
+   Copyright (C) 1996-2025 Markus Franz Xaver Johannes Oberhumer
+   Copyright (C) 1996-2025 Laszlo Molnar
+   Copyright (C) 2000-2025 John F. Reiser
    All Rights Reserved.
 
    UPX and the UCL library are free software; you can redistribute them
@@ -145,6 +145,7 @@ ERR_LAB
             xi->size -= h.sz_cpr;
         }
         else { // copy literal block
+            xi->size += sizeof(h);  // xread(xi, &h, sizeof(h)) was a peek
             xread(xi, xo->buf, h.sz_cpr);
         }
         xo->buf  += h.sz_unc;

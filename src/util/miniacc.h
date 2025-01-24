@@ -2,7 +2,7 @@
 
    This file is part of the UPX executable compressor.
 
-   Copyright (C) 1996-2024 Markus Franz Xaver Johannes Oberhumer
+   Copyright (C) 1996-2025 Markus Franz Xaver Johannes Oberhumer
    All Rights Reserved.
 
    UPX and the UCL library are free software; you can redistribute them
@@ -29,7 +29,7 @@
 
 #ifndef __ACC_H_INCLUDED
 #define __ACC_H_INCLUDED 1
-#define ACC_VERSION     20240309L
+#define ACC_VERSION     20240701L
 #if defined(__CYGWIN32__) && !defined(__CYGWIN__)
 #  define __CYGWIN__ __CYGWIN32__
 #endif
@@ -3145,7 +3145,15 @@ ACC_COMPILE_TIME_ASSERT_HEADER(ACC_SIZEOF_PTRDIFF_T == sizeof(ptrdiff_t))
    ACC_COMPILE_TIME_ASSERT_HEADER(sizeof(acc_int64f_t) == ACC_SIZEOF_ACC_INT64F_T)
 #endif
 #if !defined(acc_intptr_t)
-#if 1 && (ACC_OS_OS400 && (ACC_SIZEOF_VOID_P == 16))
+#if defined(__INTPTR_TYPE__) && defined(__UINTPTR_TYPE__)
+#  if !(ACC_LANG_ASSEMBLER)
+   typedef __INTPTR_TYPE__          acc_intptr_t;
+   typedef __UINTPTR_TYPE__         acc_uintptr_t;
+#  endif
+#  define acc_intptr_t              acc_intptr_t
+#  define acc_uintptr_t             acc_uintptr_t
+#  define ACC_SIZEOF_ACC_INTPTR_T   ACC_SIZEOF_VOID_P
+#elif 1 && (ACC_OS_OS400 && (ACC_SIZEOF_VOID_P == 16))
 #  define __ACC_INTPTR_T_IS_POINTER 1
 #  if !(ACC_LANG_ASSEMBLER)
    typedef char *                   acc_intptr_t;
@@ -4407,7 +4415,15 @@ void __ACC_UA_SET_LE32(__acc_ua_volatile void* pp, unsigned long v) {
    ACC_COMPILE_TIME_ASSERT_HEADER(sizeof(acc_int64f_t) == ACC_SIZEOF_ACC_INT64F_T)
 #endif
 #if !defined(acc_intptr_t)
-#if 1 && (ACC_OS_OS400 && (ACC_SIZEOF_VOID_P == 16))
+#if defined(__INTPTR_TYPE__) && defined(__UINTPTR_TYPE__)
+#  if !(ACC_LANG_ASSEMBLER)
+   typedef __INTPTR_TYPE__          acc_intptr_t;
+   typedef __UINTPTR_TYPE__         acc_uintptr_t;
+#  endif
+#  define acc_intptr_t              acc_intptr_t
+#  define acc_uintptr_t             acc_uintptr_t
+#  define ACC_SIZEOF_ACC_INTPTR_T   ACC_SIZEOF_VOID_P
+#elif 1 && (ACC_OS_OS400 && (ACC_SIZEOF_VOID_P == 16))
 #  define __ACC_INTPTR_T_IS_POINTER 1
 #  if !(ACC_LANG_ASSEMBLER)
    typedef char *                   acc_intptr_t;

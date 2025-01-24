@@ -87,7 +87,7 @@ endif # /usr/bin/env
 # make clang-format
 #***********************************************************************
 
-# automatically format some C++ source code files
+# automatically format most C++ source code files
 ifneq ($(wildcard /usr/bin/env),)
 ifeq ($(shell uname),Linux)
 

@@ -2,9 +2,9 @@
 *
 *  This file is part of the UPX executable compressor.
 *
-*  Copyright (C) 1996-2024 Markus Franz Xaver Johannes Oberhumer
-*  Copyright (C) 1996-2024 Laszlo Molnar
-*  Copyright (C) 2000-2024 John F. Reiser
+*  Copyright (C) 1996-2025 Markus Franz Xaver Johannes Oberhumer
+*  Copyright (C) 1996-2025 Laszlo Molnar
+*  Copyright (C) 2000-2025 John F. Reiser
 *  All Rights Reserved.
 *
 *  UPX and the UCL library are free software; you can redistribute them
@@ -32,8 +32,6 @@
 #define ARM_OLDABI 1
 #include "arch/arm/v5a/macros.S"
 
-#define bkpt .long 0xe7f001f0  /* reserved instr; Linux GNU eabi breakpoint */
-#define bkpt_th .short 0xde01  /* reserved instr; Linux GNU eabi breakpoint */
 sz_Elf32_Ehdr = 13*4
 sz_Elf32_Phdr =  8*4
 

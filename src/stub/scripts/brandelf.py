@@ -5,7 +5,7 @@
 #
 #  This file is part of the UPX executable compressor.
 #
-#  Copyright (C) 1996-2024 Markus Franz Xaver Johannes Oberhumer
+#  Copyright (C) 1996-2025 Markus Franz Xaver Johannes Oberhumer
 #  All Rights Reserved.
 #
 #  UPX and the UCL library are free software; you can redistribute them
@@ -58,29 +58,29 @@ def do_file(fn):
 
     def brand_arm(s):
         if e_ident[4:7] != s:
-            raise Exception, "%s is not %s" % (fn, opts.bfdname)
+            raise Exception("%s is not %s" % (fn, opts.bfdname))
         write("\x61") # ELFOSABI_ARM
     def brand_freebsd(s):
         if e_ident[4:7] != s:
-            raise Exception, "%s is not %s" % (fn, opts.bfdname)
+            raise Exception("%s is not %s" % (fn, opts.bfdname))
         write("\x09")
     def brand_linux(s):
         if e_ident[4:7] != s:
-            raise Exception, "%s is not %s" % (fn, opts.bfdname)
+            raise Exception("%s is not %s" % (fn, opts.bfdname))
         ##write("\x00Linux\x00\x00\x00")
         write("\x00" * 9)
     def brand_netbsd(s):
         if e_ident[4:7] != s:
-            raise Exception, "%s is not %s" % (fn, opts.bfdname)
+            raise Exception("%s is not %s" % (fn, opts.bfdname))
         write("\x02")
     def brand_openbsd(s):
         if e_ident[4:7] != s:
-            raise Exception, "%s is not %s" % (fn, opts.bfdname)
+            raise Exception("%s is not %s" % (fn, opts.bfdname))
         write("\x0c")
 
     if opts.bfdname[:3] == "elf":
         if e_ident[:4] != "\x7f\x45\x4c\x46":
-            raise Exception, "%s is not %s" % (fn, "ELF")
+            raise Exception("%s is not %s" % (fn, "ELF"))
         fp.seek(7, 0)
         if opts.bfdname == "elf32-bigarm" and opts.elfosabi == "arm":
             brand_arm("\x01\x02\x01")
@@ -106,7 +106,7 @@ def do_file(fn):
         done = 0
     fp.close()
     if not done:
-        raise Exception, ("error: invalid args", opts.__dict__)
+        raise Exception("error: invalid args", opts.__dict__)
 
 
 def main(argv):
@@ -127,7 +127,7 @@ def main(argv):
         else: assert 0, ("getopt problem:", opt, optarg, xopts, args)
     # process arguments
     if not args:
-        raise Exception, "error: no arguments given"
+        raise Exception("error: no arguments given")
     for arg in args:
         do_file(arg)
     return 0

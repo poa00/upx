@@ -2,9 +2,9 @@
 
    This file is part of the UPX executable compressor.
 
-   Copyright (C) 1996-2024 Markus Franz Xaver Johannes Oberhumer
-   Copyright (C) 1996-2024 Laszlo Molnar
-   Copyright (C) 2002-2024 Jens Medoch
+   Copyright (C) 1996-2025 Markus Franz Xaver Johannes Oberhumer
+   Copyright (C) 1996-2025 Laszlo Molnar
+   Copyright (C) 2002-2025 Jens Medoch
    All Rights Reserved.
 
    UPX and the UCL library are free software; you can redistribute them
@@ -154,7 +154,7 @@ void PackPs1::putBkupHeader(const byte *src, byte *dst, unsigned *len) {
         if (r != UPX_E_OK || sz_cbh >= SZ_IH_BKUP)
             throwInternalError("header compression failed");
         INIT_BH_BKUP(p, sz_cbh);
-        *len = ALIGN_UP(sz_cbh + (unsigned) sizeof(ps1_exe_chb_t) - 1, 4u);
+        *len = ALIGN_UP(sz_cbh + usizeof(ps1_exe_chb_t) - 1, 4u);
         p->ih_csum = ADLER16(upx_adler32(&ih.epc, SZ_IH_BKUP));
         memcpy(dst, cpr_bh, SZ_IH_BKUP);
     } else
@@ -300,7 +300,7 @@ void PackPs1::buildLoader(const Filter *) {
         } else
             initLoader(stub_mipsel_r3000_ps1, sizeof(stub_mipsel_r3000_ps1));
 
-        pad_code = ALIGN_GAP((ph.c_len + (isCon ? sz_lcpr : 0)), 4u);
+        pad_code = ALIGN_UP_GAP((ph.c_len + (isCon ? sz_lcpr : 0)), 4u);
         assert(pad_code < 4);
         static const byte pad_buffer[4] = {0, 0, 0, 0};
         linker->addSection("pad.code", pad_buffer, pad_code, 0);

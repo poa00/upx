@@ -6,8 +6,9 @@ argv0=$0; argv0abs=$(readlink -fn "$argv0"); argv0dir=$(dirname "$argv0abs")
 #
 # Copyright (C) Markus Franz Xaver Johannes Oberhumer
 #
-# mimic running "ctest", i.e. the "test" section of CMakeLists.txt; does not redirect stdout
-# (allows freely setting $upx_exe_runner, while CMake is restricted to configure-time settings)
+# mimic running "ctest", i.e. the "test" section of CMakeLists.txt
+#   - does not redirect stdout
+#   - allows freely setting $upx_exe_runner, while CMake is restricted to configure-time settings
 #
 # requires:
 #   $upx_exe                (required, but with convenience fallback "./upx")
@@ -48,7 +49,7 @@ if ! "${run_upx[@]}" --help >/dev/null;  then echo "UPX-ERROR: FATAL: upx --help
 #***********************************************************************
 # see CMakeLists.txt
 #
-# IDEA: create a Makefile and use "make -j" so that these tests can
+# IDEA: create a Makefile and use "make -j8" so that these tests can
 #   run in parallel much like "ctest --parallel 8"
 #***********************************************************************
 

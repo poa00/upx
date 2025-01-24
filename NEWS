@@ -2,11 +2,12 @@
 User visible changes for UPX
 ==================================================================
 
-Changes in 4.3.0 (XX XXX XXXX):
-  * bug fixes - see https://github.com/upx/upx/milestone/18
-  * ELF: PT_MIPS_ABIFLAGS is now fowarded into the compressed output;
+Changes in 5.0.0 (XX XXX XXXX):
+  * ELF: PT_MIPS_ABIFLAGS is now forwarded into the compressed output;
     qemu-mips can choose the right floating-point emulation
   * ELF: --unmap-all-pages completely avoids /proc/self/exe
+  * ELF: --android-old supports older than Android 10; costs 1KB
+  * bug fixes - see https://github.com/upx/upx/milestone/18
 
 Changes in 4.2.4 (09 May 2024):
   * bug fixes - see https://github.com/upx/upx/milestone/17

@@ -2,7 +2,7 @@
 
    This file is part of the UPX executable compressor.
 
-   Copyright (C) 1996-2024 Markus Franz Xaver Johannes Oberhumer
+   Copyright (C) 1996-2025 Markus Franz Xaver Johannes Oberhumer
    All Rights Reserved.
 
    UPX and the UCL library are free software; you can redistribute them
@@ -187,6 +187,26 @@ TEST_CASE("upx::noncopyable") {
 // <type_traits>
 **************************************************************************/
 
+static_assert(!upx::is_bounded_array_v<std::nullptr_t>);
+static_assert(!upx::is_bounded_array_v<decltype(nullptr)>);
+static_assert(!upx::is_bounded_array_v<void *>);
+static_assert(!upx::is_bounded_array_v<int *>);
+static_assert(!upx::is_bounded_array_v<const int *>);
+static_assert(!upx::is_bounded_array_v<volatile int *>);
+static_assert(!upx::is_bounded_array_v<const volatile int *>);
+static_assert(upx::is_bounded_array_v<int[1]>);
+static_assert(upx::is_bounded_array_v<const int[1]>);
+static_assert(upx::is_bounded_array_v<volatile int[1]>);
+static_assert(upx::is_bounded_array_v<const volatile int[1]>);
+static_assert(upx::is_bounded_array_v<int[1u]>);
+static_assert(upx::is_bounded_array_v<const int[1u]>);
+static_assert(upx::is_bounded_array_v<volatile int[1u]>);
+static_assert(upx::is_bounded_array_v<const volatile int[1u]>);
+static_assert(upx::is_bounded_array_v<int[1l]>);
+static_assert(upx::is_bounded_array_v<const int[1l]>);
+static_assert(upx::is_bounded_array_v<volatile int[1l]>);
+static_assert(upx::is_bounded_array_v<const volatile int[1l]>);
+
 static_assert(upx::is_same_all_v<int>);
 static_assert(upx::is_same_all_v<int, int>);
 static_assert(upx::is_same_all_v<int, int, int>);
@@ -204,8 +224,42 @@ static_assert(!upx::is_same_any_v<int, char, long>);
 
 static_assert(upx::is_same_any_v<ptrdiff_t, int, long, long long>);
 static_assert(upx::is_same_any_v<size_t, unsigned, unsigned long, unsigned long long>);
-// TODO later: CHERI
+static_assert(upx::is_same_any_v<upx_ptraddr_t, unsigned, unsigned long, unsigned long long>);
+#if defined(__CHERI__) && defined(__CHERI_PURE_CAPABILITY__)
+static_assert(!upx::is_same_any_v<upx_uintptr_t, unsigned, unsigned long, unsigned long long>);
+#else
 static_assert(upx::is_same_any_v<upx_uintptr_t, unsigned, unsigned long, unsigned long long>);
+#endif
+
+static_assert(std::is_same_v<int, upx::remove_cvref_t<int> >);
+static_assert(std::is_same_v<int, upx::remove_cvref_t<const int> >);
+static_assert(std::is_same_v<int, upx::remove_cvref_t<int &> >);
+static_assert(std::is_same_v<int, upx::remove_cvref_t<const int &> >);
+static_assert(std::is_same_v<int, upx::remove_cvref_t<int &&> >);
+static_assert(std::is_same_v<int, upx::remove_cvref_t<const int &&> >);
+static_assert(std::is_same_v<int *, upx::remove_cvref_t<int *> >);
+static_assert(std::is_same_v<int *, upx::remove_cvref_t<int *const> >);
+static_assert(std::is_same_v<const int *, upx::remove_cvref_t<const int *> >);
+static_assert(std::is_same_v<int *, upx::remove_cvref_t<int *&> >);
+static_assert(std::is_same_v<int *, upx::remove_cvref_t<int *const &> >);
+static_assert(std::is_same_v<const int *, upx::remove_cvref_t<const int *&> >);
+static_assert(std::is_same_v<int *, upx::remove_cvref_t<int *&&> >);
+static_assert(std::is_same_v<int *, upx::remove_cvref_t<int *const &&> >);
+static_assert(std::is_same_v<const int *, upx::remove_cvref_t<const int *&&> >);
+static_assert(std::is_same_v<int[1], upx::remove_cvref_t<int[1]> >);
+static_assert(std::is_same_v<int[1], upx::remove_cvref_t<const int[1]> >);
+
+static_assert(std::is_same_v<int, upx::type_identity_t<int> >);
+static_assert(std::is_same_v<const int, upx::type_identity_t<const int> >);
+static_assert(std::is_same_v<int *, upx::type_identity_t<int *> >);
+static_assert(std::is_same_v<int *const, upx::type_identity_t<int *const> >);
+static_assert(std::is_same_v<const int *, upx::type_identity_t<const int *> >);
+static_assert(std::is_same_v<int &, upx::type_identity_t<int &> >);
+static_assert(std::is_same_v<const int &, upx::type_identity_t<const int &> >);
+static_assert(std::is_same_v<int &&, upx::type_identity_t<int &&> >);
+static_assert(std::is_same_v<const int &&, upx::type_identity_t<const int &&> >);
+static_assert(std::is_same_v<int[1], upx::type_identity_t<int[1]> >);
+static_assert(std::is_same_v<const int[1], upx::type_identity_t<const int[1]> >);
 
 /*************************************************************************
 // <bit>
@@ -231,20 +285,22 @@ static_assert(upx::align_up(1, 4) == 4);
 static_assert(upx::align_up(2, 4) == 4);
 static_assert(upx::align_up(3, 4) == 4);
 static_assert(upx::align_up(4, 4) == 4);
-static_assert(upx::align_gap(0, 4) == 0);
-static_assert(upx::align_gap(1, 4) == 3);
-static_assert(upx::align_gap(2, 4) == 2);
-static_assert(upx::align_gap(3, 4) == 1);
-static_assert(upx::align_gap(4, 4) == 0);
+static_assert(upx::align_up_gap(0, 4) == 0);
+static_assert(upx::align_up_gap(1, 4) == 3);
+static_assert(upx::align_up_gap(2, 4) == 2);
+static_assert(upx::align_up_gap(3, 4) == 1);
+static_assert(upx::align_up_gap(4, 4) == 0);
 
 static_assert(upx::min<upx_int8_t>(1, 2) == 1);
 static_assert(upx::min<upx_int16_t>(1, 2) == 1);
 static_assert(upx::min<upx_int32_t>(1, 2) == 1);
 static_assert(upx::min<upx_int64_t>(1, 2) == 1);
+static_assert(upx::min<intmax_t>(1, 2) == 1);
 static_assert(upx::max<upx_int8_t>(1, 2) == 2);
 static_assert(upx::max<upx_int16_t>(1, 2) == 2);
 static_assert(upx::max<upx_int32_t>(1, 2) == 2);
 static_assert(upx::max<upx_int64_t>(1, 2) == 2);
+static_assert(upx::max<intmax_t>(1, 2) == 2);
 
 static_assert(upx::min(1, 2) == 1);
 static_assert(upx::min(1l, 2l) == 1);
@@ -257,10 +313,12 @@ static_assert(upx::umin<upx_uint8_t>(1, 2) == 1);
 static_assert(upx::umin<upx_uint16_t>(1, 2) == 1);
 static_assert(upx::umin<upx_uint32_t>(1, 2) == 1);
 static_assert(upx::umin<upx_uint64_t>(1, 2) == 1);
+static_assert(upx::umin<uintmax_t>(1, 2) == 1);
 static_assert(upx::umax<upx_uint8_t>(1, 2) == 2);
 static_assert(upx::umax<upx_uint16_t>(1, 2) == 2);
 static_assert(upx::umax<upx_uint32_t>(1, 2) == 2);
 static_assert(upx::umax<upx_uint64_t>(1, 2) == 2);
+static_assert(upx::umax<uintmax_t>(1, 2) == 2);
 
 static_assert(upx::umin(1u, 2u) == 1);
 static_assert(upx::umin(1ul, 2ul) == 1);

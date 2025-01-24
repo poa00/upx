@@ -5,7 +5,7 @@
 #
 #  This file is part of the UPX executable compressor.
 #
-#  Copyright (C) 1996-2024 Markus Franz Xaver Johannes Oberhumer
+#  Copyright (C) 1996-2025 Markus Franz Xaver Johannes Oberhumer
 #  All Rights Reserved.
 #
 #  UPX and the UCL library are free software; you can redistribute them
@@ -63,7 +63,7 @@ def not_found(state, l, inc, fatal=None):
     if fatal is None:
         fatal = opts.fatal
     if fatal:
-        raise Exception, "%s:%d: include file %s not found" % (state[0], state[2], inc)
+        raise Exception("%s:%d: include file %s not found" % (state[0], state[2], inc))
     return l
 
 
@@ -78,7 +78,7 @@ def parse_comment(state, l, comment):
         if   f == "ignore=0": cf["fatal"] = 1
         elif f == "ignore=1": cf["fatal"] = 0
         else:
-            raise Exception, "%s:%d: bad flags %s %s" % (state[0], state[2], f, str(flags))
+            raise Exception("%s:%d: bad flags %s %s" % (state[0], state[2], f, str(flags)))
     return cf
 
 
@@ -93,7 +93,7 @@ def handle_inc_c(state, l, ofp):
     elif q1 == '"' and q2 == '"':
         dirs = [state[1]] + opts.includes
     else:
-        raise Exception, "syntax error: include line " + l
+        raise Exception("syntax error: include line " + l)
     for dir in dirs:
         fn = os.path.join(dir, inc)
         if os.path.isfile(fn):
@@ -114,7 +114,7 @@ def handle_inc_nasm(state, l, ofp):
     elif q1 == '"' and q2 == '"':
         pass
     else:
-        raise Exception, "syntax error: include line " + l
+        raise Exception("syntax error: include line " + l)
     # info: nasm simply does concat the includes
     for prefix in opts.includes + [""]:
         fn = prefix + inc

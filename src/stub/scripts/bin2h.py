@@ -5,7 +5,7 @@
 #
 #  This file is part of the UPX executable compressor.
 #
-#  Copyright (C) 1996-2024 Markus Franz Xaver Johannes Oberhumer
+#  Copyright (C) 1996-2025 Markus Franz Xaver Johannes Oberhumer
 #  All Rights Reserved.
 #
 #  UPX and the UCL library are free software; you can redistribute them
@@ -49,9 +49,9 @@ def w_header_c(w, ifile, ofile, n):
     w("""\n\
    This file is part of the UPX executable compressor.
 
-   Copyright (C) 1996-2024 Markus Franz Xaver Johannes Oberhumer
-   Copyright (C) 1996-2024 Laszlo Molnar
-   Copyright (C) 2000-2024 John F. Reiser
+   Copyright (C) 1996-2025 Markus Franz Xaver Johannes Oberhumer
+   Copyright (C) 1996-2025 Laszlo Molnar
+   Copyright (C) 2000-2025 John F. Reiser
    All Rights Reserved.
 
    UPX and the UCL library are free software; you can redistribute them
@@ -256,7 +256,7 @@ def compress_stub(method, idata):
         # encode upx stub header
         odata = encode_compressed_stub_header(method, idata, odata) + odata
     else:
-        raise Exception, ("invalid method", method, opts.methods)
+        raise Exception("invalid method", method, opts.methods)
     if 1 and len(odata) >= len(idata):
         # not compressible
         return 0, idata

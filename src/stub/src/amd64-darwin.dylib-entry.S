@@ -3,9 +3,9 @@
 ;
 ;  This file is part of the UPX executable compressor.
 ;
-;  Copyright (C) 1996-2024 Markus Franz Xaver Johannes Oberhumer
-;  Copyright (C) 1996-2024 Laszlo Molnar
-;  Copyright (C) 2000-2024 John F. Reiser
+;  Copyright (C) 1996-2025 Markus Franz Xaver Johannes Oberhumer
+;  Copyright (C) 1996-2025 Laszlo Molnar
+;  Copyright (C) 2000-2025 John F. Reiser
 ;  All Rights Reserved.
 ;
 ;  UPX and the UCL library are free software; you can redistribute them
@@ -111,7 +111,7 @@ ra_setup:
 #define GETBITp \
         addl bits,bits; jnz 0f; \
         movl (%rsi),bits; subq $-4,%rsi; \
-        adcl bits,bits; movb (%rsi),%dl; \
+        adcl bits,bits; movzbl (%rsi),%edx; \
 0:
 /* Same, but without prefetch (not useful for length of match.) */
 #define jnextb0n jnextb0y
@@ -135,21 +135,21 @@ getbit:
 refill:
         movl (%rsi),bits; subq $-4,%rsi  // next 32 bits; set Carry
         adcl bits,bits  // LSB= 1 (CarryIn); CarryOut= next bit
-        movb (%rsi),%dl  // speculate: literal, or bottom 8 bits of offset
+        movzbl (%rsi),%edx  // speculate: literal, or bottom 8 bits of offset
         rep; ret
 
 copy:  // In: len, %rdi, dispq;  Out: 0==len, %rdi, dispq;  trashes %rax, %rdx
         leaq (%rdi,dispq),%rax; cmpl $5,len  // <=3 is forced
-        movb (%rax),%dl; jbe copy1  // <=5 for better branch predict
+        movzbl (%rax),%edx; jbe copy1  // <=5 for better branch predict
         cmpq $-4,dispq;  ja  copy1  // 4-byte chunks would overlap
         subl $4,len  // adjust for termination cases
 copy4:
         movl (%rax),%edx; addq $4,      %rax; subl $4,len
         movl %edx,(%rdi); leaq  4(%rdi),%rdi; jnc copy4
-        addl $4,len; movb (%rax),%dl; jz copy0
+        addl $4,len; movzbl (%rax),%edx; jz copy0
 copy1:
         incq %rax; movb %dl,(%rdi); subl $1,len
-                   movb (%rax),%dl
+                   movzbl (%rax),%edx
         leaq 1(%rdi),%rdi;          jnz copy1
 copy0:
         rep; ret

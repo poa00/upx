@@ -2,7 +2,7 @@
 
    This file is part of the UPX executable compressor.
 
-   Copyright (C) 1996-2024 Markus Franz Xaver Johannes Oberhumer
+   Copyright (C) 1996-2025 Markus Franz Xaver Johannes Oberhumer
    All Rights Reserved.
 
    UPX and the UCL library are free software; you can redistribute them
@@ -49,4 +49,20 @@
 #define timeval win32_timeval /* struct timeval already in <sys/time.h> */
 #endif
 
+#if defined(__CYGWIN__) && defined(_WIN32)
+#error "unexpected _WIN32"
+#endif
+#if defined(__CYGWIN__) && defined(_WIN64)
+#error "unexpected _WIN64"
+#endif
+
 #include <windows.h>
+
+#if defined(__CYGWIN__) && defined(_WIN32)
+#error "unexpected _WIN32"
+// #undef _WIN32
+#endif
+#if defined(__CYGWIN__) && defined(_WIN64)
+// #error "unexpected _WIN64"
+#undef _WIN64
+#endif

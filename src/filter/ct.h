@@ -2,8 +2,8 @@
 
    This file is part of the UPX executable compressor.
 
-   Copyright (C) 1996-2024 Markus Franz Xaver Johannes Oberhumer
-   Copyright (C) 1996-2024 Laszlo Molnar
+   Copyright (C) 1996-2025 Markus Franz Xaver Johannes Oberhumer
+   Copyright (C) 1996-2025 Laszlo Molnar
    All Rights Reserved.
 
    UPX and the UCL library are free software; you can redistribute them
@@ -355,6 +355,7 @@ static int s_ct24arm_be(Filter *f) {
 **************************************************************************/
 
 #if 1 //{ old reliable
+
 #define CT26ARM_LE(f, cond, addvalue, get, set)                                                    \
     byte *b = f->buf;                                                                              \
     byte *b_end = b + f->buf_len - 4;                                                              \
@@ -387,10 +388,9 @@ static int s_ct26arm_le(Filter *f) {
 
 #else //}{ new enhanced but DIFFERENT; need new filter type!
 
-static int CTarm64(Filter *f, int dir) // dir: 1, 0, -1
-{
-    upx_byte *b = f->buf; // will be incremented
-    upx_byte *const b_end = b + f->buf_len - 4;
+static int CTarm64(Filter *f, int dir) { // dir: 1, 0, -1
+    byte *b = f->buf;                    // will be incremented
+    byte *const b_end = b + f->buf_len - 4;
     do {
         unsigned const a = b - f->buf;
         int const d = dir * (f->addvalue + (a >> 2));

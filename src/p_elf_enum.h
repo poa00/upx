@@ -2,8 +2,8 @@
 
    This file is part of the UPX executable compressor.
 
-   Copyright (C) 1996-2024 Markus Franz Xaver Johannes Oberhumer
-   Copyright (C) 1996-2024 Laszlo Molnar
+   Copyright (C) 1996-2025 Markus Franz Xaver Johannes Oberhumer
+   Copyright (C) 1996-2025 Laszlo Molnar
    All Rights Reserved.
 
    UPX and the UCL library are free software; you can redistribute them
@@ -72,8 +72,9 @@ class Dummy {
         ET_DYN = 3,  /* Shared object file */
         ET_CORE = 4, /* Core file */
     };
-    enum {          // e_machine
-        EM_386 = 3, // i386
+    enum {           // e_machine
+        EM_NONE = 0, // No machine
+        EM_386 = 3,  // i386
         EM_MIPS = 8,
         EM_MIPS_RS3_LE = 10, // MIPS R3000 little-endian
         EM_PPC = 20,
@@ -138,6 +139,7 @@ class Dummy {
         SHT_PREINIT_ARRAY = 16,       /* Array of pre-constructors */
         SHT_GROUP = 17,               /* Section group */
         SHT_SYMTAB_SHNDX = 18,        /* Extended section indices */
+        SHT_RELR = 19,                /* RELR relative relocations */
         SHT_GNU_HASH = 0x6ffffff6,    /* GNU-style hash table.  */
         SHT_GNU_LIBLIST = 0x6ffffff7, /* Prelink library list */
         SHT_GNU_verdef = 0x6ffffffd,  /* Version definition section.  */

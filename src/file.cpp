@@ -2,8 +2,8 @@
 
    This file is part of the UPX executable compressor.
 
-   Copyright (C) 1996-2024 Markus Franz Xaver Johannes Oberhumer
-   Copyright (C) 1996-2024 Laszlo Molnar
+   Copyright (C) 1996-2025 Markus Franz Xaver Johannes Oberhumer
+   Copyright (C) 1996-2025 Laszlo Molnar
    All Rights Reserved.
 
    UPX and the UCL library are free software; you can redistribute them
@@ -321,23 +321,21 @@ upx_off_t OutputFile::seek(upx_off_t off, int whence) {
     mem_size_assert(1, off >= 0 ? off : -off); // sanity check
     assert(!opt->to_stdout);
     switch (whence) {
-    case SEEK_SET: {
-        if (bytes_written < off) {
+    case SEEK_SET:
+        if (bytes_written < off)
             bytes_written = off;
-        }
         _length = bytes_written; // cheap, lazy update; needed?
-    } break;
-    case SEEK_END: {
+        break;
+    case SEEK_END:
         _length = bytes_written; // necessary
-    } break;
+        break;
     }
     return super::seek(off, whence);
 }
 
 // WARNING: fsync() does not exist in some Windows environments.
 // This trick works only on UNIX-like systems.
-// int OutputFile::read(void *buf, int len)
-//{
+// int OutputFile::read(void *buf, int len) {
 //    fsync(_fd);
 //    InputFile infile;
 //    infile.open(this->getName(), O_RDONLY | O_BINARY);

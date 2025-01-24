@@ -2,8 +2,8 @@
 
    This file is part of the UPX executable compressor.
 
-   Copyright (C) 1996-2024 Markus Franz Xaver Johannes Oberhumer
-   Copyright (C) 1996-2024 Laszlo Molnar
+   Copyright (C) 1996-2025 Markus Franz Xaver Johannes Oberhumer
+   Copyright (C) 1996-2025 Laszlo Molnar
    All Rights Reserved.
 
    UPX and the UCL library are free software; you can redistribute them
@@ -25,6 +25,7 @@
    <markus@oberhumer.com>               <ezerotven+github@gmail.com>
  */
 
+#define WANT_WINDOWS_LEAN_H 1
 #include "system_headers.h"
 #define ACC_WANT_ACC_INCI_H 1
 #include "miniacc.h"
@@ -105,14 +106,12 @@ TEST_CASE("mem_size") {
 // ptr util
 **************************************************************************/
 
-int ptr_diff_bytes(const void *a, const void *b) {
-    if very_unlikely (a == nullptr) {
+int ptr_diff_bytes(const void *a, const void *b) may_throw {
+    if very_unlikely (a == nullptr)
         throwCantPack("ptr_diff_bytes null 1; take care");
-    }
-    if very_unlikely (b == nullptr) {
+    if very_unlikely (b == nullptr)
         throwCantPack("ptr_diff_bytes null 2; take care");
-    }
-    ptrdiff_t d = (const charptr) a - (const charptr) b;
+    upx_sptraddr_t d = ptraddr_diff(a, b);
     if (a >= b) {
         if very_unlikely (!mem_size_valid_bytes(d))
             throwCantPack("ptr_diff_bytes-1; take care");
@@ -120,10 +119,11 @@ int ptr_diff_bytes(const void *a, const void *b) {
         if very_unlikely (!mem_size_valid_bytes(0ll - d))
             throwCantPack("ptr_diff_bytes-2; take care");
     }
+    assert_noexcept(d == ((const charptr) a - (const charptr) b));
     return ACC_ICONV(int, d);
 }
 
-unsigned ptr_udiff_bytes(const void *a, const void *b) {
+unsigned ptr_udiff_bytes(const void *a, const void *b) may_throw {
     int d = ptr_diff_bytes(a, b);
     if very_unlikely (d < 0)
         throwCantPack("ptr_udiff_bytes; take care");
@@ -291,23 +291,25 @@ void *upx_calloc(size_t n, size_t element_size) may_throw {
 }
 
 // simple unoptimized memswap()
-void upx_memswap(void *a, void *b, size_t bytes) noexcept {
-    if (a != b && bytes != 0) {
-        byte *x = (byte *) a;
-        byte *y = (byte *) b;
+// TODO later: CHERI clang-14 bug/miscompilation with upx_memswap(); or
+//   maybe caused by tagged-memory issues ???
+void upx_memswap(void *aa, void *bb, size_t bytes) noexcept {
+    if (aa != bb && bytes != 0) {
+        byte *a = (byte *) aa;
+        byte *b = (byte *) bb;
         do {
             // strange clang-analyzer-15 false positive when compiling in Debug mode
             // clang-analyzer-core.uninitialized.Assign
-            byte tmp = *x; // NOLINT(*core.uninitialized.Assign) // bogus clang-analyzer warning
-            *x++ = *y;
-            *y++ = tmp;
+            byte tmp = *a; // NOLINT(*core.uninitialized.Assign) // bogus clang-analyzer warning
+            *a++ = *b;
+            *b++ = tmp;
         } while (--bytes != 0);
     }
 }
 
 // much better memswap(), optimized for our use case in sort functions below
 static inline void memswap_no_overlap(byte *a, byte *b, size_t bytes) noexcept {
-#if defined(__clang__) && __clang_major__ < 15
+#if defined(__clang__) && (__clang_major__ < 15) && !defined(__CHERI__)
     // work around a clang < 15 ICE (Internal Compiler Error)
     // @COMPILER_BUG @CLANG_BUG
     upx_memswap(a, b, bytes);
@@ -416,6 +418,59 @@ void upx_std_stable_sort(void *array, size_t n, upx_compare_func_t compare) {
     };
     std::stable_sort((element_type *) array, (element_type *) array + n, less);
 #endif
+}
+
+TEST_CASE("upx_memswap") {
+    auto check4 = [](int off1, int off2, int len, int a, int b, int c, int d) {
+        byte p[4] = {0, 1, 2, 3};
+        assert_noexcept(a + b + c + d == 0 + 1 + 2 + 3);
+        upx_memswap(p + off1, p + off2, len);
+        CHECK((p[0] == a && p[1] == b && p[2] == c && p[3] == d));
+    };
+    // identical
+    check4(0, 0, 4, 0, 1, 2, 3);
+    // non-overlapping
+    check4(0, 1, 1, 1, 0, 2, 3);
+    check4(1, 0, 1, 1, 0, 2, 3);
+    check4(0, 2, 2, 2, 3, 0, 1);
+    check4(2, 0, 2, 2, 3, 0, 1);
+    // overlapping
+    check4(0, 1, 2, 1, 2, 0, 3);
+    check4(1, 0, 2, 1, 2, 0, 3);
+    check4(0, 1, 3, 1, 2, 3, 0);
+    check4(1, 0, 3, 1, 2, 3, 0);
+
+    // pointer array
+    {
+        typedef byte element_type;
+        element_type a = 11, b = 22;
+        element_type *array[4];
+        // NOLINTNEXTLINE(bugprone-multi-level-implicit-pointer-conversion)
+        memset(array, 0xfb, sizeof(array));
+        array[1] = &a;
+        array[3] = &b;
+        CHECK(*array[1] == 11);
+        CHECK(*array[3] == 22);
+#if defined(__CHERI__) && defined(__CHERI_PURE_CAPABILITY__)
+        // TODO later: CHERI clang-14 bug/miscompilation with upx_memswap(); or
+        //   maybe caused by tagged-memory issues ???
+        // NOLINTNEXTLINE(bugprone-multi-level-implicit-pointer-conversion)
+        memswap_no_overlap((byte *) array, (byte *) (array + 2), 2 * sizeof(array[0]));
+#else
+        // NOLINTNEXTLINE(bugprone-multi-level-implicit-pointer-conversion)
+        upx_memswap(array, array + 2, 2 * sizeof(array[0]));
+#endif
+        CHECK(array[1] == &b);
+        CHECK(array[3] == &a);
+        CHECK(*array[1] == 22);
+        CHECK(*array[3] == 11);
+        // NOLINTNEXTLINE(bugprone-multi-level-implicit-pointer-conversion)
+        memswap_no_overlap((byte *) array, (byte *) (array + 2), 2 * sizeof(array[0]));
+        CHECK(array[1] == &a);
+        CHECK(array[3] == &b);
+        CHECK(*array[1] == 11);
+        CHECK(*array[3] == 22);
+    }
 }
 
 #if UPX_CONFIG_USE_STABLE_SORT
@@ -970,7 +1025,7 @@ TEST_CASE("get_ratio") {
 // compat
 **************************************************************************/
 
-#if defined(__wasi__) && 1 // TODO later - wait for wasm/wasi exception handling proposal
+#if defined(__wasi__) && 1 // TODO later: wait for wasm/wasi exception handling proposal
 extern "C" {
 void *__cxa_allocate_exception(std::size_t thrown_size) throw() { return ::malloc(thrown_size); }
 void __cxa_throw(void *thrown_exception, /*std::type_info*/ void *tinfo, void (*dest)(void *)) {

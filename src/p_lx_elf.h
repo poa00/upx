@@ -2,9 +2,9 @@
 
    This file is part of the UPX executable compressor.
 
-   Copyright (C) 1996-2024 Markus Franz Xaver Johannes Oberhumer
-   Copyright (C) 1996-2024 Laszlo Molnar
-   Copyright (C) 2000-2024 John F. Reiser
+   Copyright (C) 1996-2025 Markus Franz Xaver Johannes Oberhumer
+   Copyright (C) 1996-2025 Laszlo Molnar
+   Copyright (C) 2000-2025 John F. Reiser
    All Rights Reserved.
 
    UPX and the UCL library are free software; you can redistribute them
@@ -58,6 +58,12 @@ protected:
     virtual int  pack2(OutputFile *, Filter &) override = 0;  // append compressed data
     virtual off_t pack3(OutputFile *, Filter &) override = 0;  // append loader
     //virtual void pack4(OutputFile *, Filter &) override = 0;  // append pack header
+
+    virtual unsigned pack2_shlib_overlay_init(OutputFile *fo);
+    virtual unsigned pack2_shlib_overlay_compress(MemBuffer &obuf,
+        MemBuffer &ibuf, unsigned u_len);
+    virtual unsigned pack2_shlib_overlay_write(OutputFile *fo, MemBuffer &obuf,
+        unsigned hdr_u_len, unsigned hdr_c_len);
 
     virtual void generateElfHdr(
         OutputFile *,
@@ -149,10 +155,13 @@ protected:
     virtual void ARM_updateLoader(OutputFile *);
     virtual int  ARM_is_QNX(void);
 
+    virtual upx_uint64_t canPack_Shdr(Elf32_Phdr const *pload_x0);
     virtual void pack1(OutputFile *, Filter &) override;  // generate executable header
     virtual void asl_pack2_Shdrs(OutputFile *, unsigned pre_xct_top);  // AndroidSharedLibrary processes Shdrs
     virtual void asl_slide_Shdrs();  // by so_slide if above xct_off
+    virtual unsigned slide_sh_offset(Elf32_Shdr *shdr);
     virtual int  pack2(OutputFile *, Filter &) override;  // append compressed data
+    virtual int  pack2_shlib(OutputFile *fo, Filter &ft, unsigned pre_xct_top);
     virtual off_t pack3(OutputFile *, Filter &) override;  // append loader
     virtual void pack4(OutputFile *, Filter &) override;  // append pack header
     virtual unsigned forward_Shdrs(OutputFile *fo, Elf32_Ehdr *ehdro);
@@ -206,7 +215,7 @@ protected:
     unsigned elf_find_table_size(unsigned dt_type, unsigned sh_type);
     void sort_DT32_offsets(Elf32_Dyn const *const dynp0);
 
-    int is_LOAD32(Elf32_Phdr const *phdr) const;  // beware confusion with (1+ LO_PROC)
+    int is_LOAD(Elf32_Phdr const *phdr) const;  // beware confusion with (1+ LO_PROC)
     unsigned check_pt_load(Elf32_Phdr const *);
     unsigned check_pt_dynamic(Elf32_Phdr const *);
     void invert_pt_dynamic(Elf32_Dyn const *, unsigned dt_filesz);
@@ -318,9 +327,13 @@ protected:
     virtual tribool canPack() override;
     virtual tribool canUnpack() override; // bool, except -1: format known, but not packed
 
+    virtual upx_uint64_t canPack_Shdr(Elf64_Phdr const *pload_x0);
     virtual void pack1(OutputFile *, Filter &) override;  // generate executable header
     virtual void asl_pack2_Shdrs(OutputFile *, unsigned pre_xct_top);  // AndroidSharedLibrary processes Shdrs
+    virtual void asl_slide_Shdrs();  // by so_slide if above xct_off
+    virtual unsigned slide_sh_offset(Elf64_Shdr *shdr);
     virtual int  pack2(OutputFile *, Filter &) override;  // append compressed data
+    virtual int  pack2_shlib(OutputFile *fo, Filter &ft, unsigned pre_xct_top);
     virtual off_t pack3(OutputFile *, Filter &) override;  // append loader
     virtual void pack4(OutputFile *, Filter &) override;  // append pack header
     virtual unsigned forward_Shdrs(OutputFile *fo, Elf64_Ehdr *ehdro);
@@ -371,7 +384,7 @@ protected:
     Elf64_Dyn        *elf_find_dynptr(unsigned) const;
     unsigned elf_find_table_size(unsigned dt_type, unsigned sh_type);
     void sort_DT64_offsets(Elf64_Dyn const *const dynp0);
-    int is_LOAD64(Elf64_Phdr const *phdr) const;  // beware confusion with (1+ LO_PROC)
+    int is_LOAD(Elf64_Phdr const *phdr) const;  // beware confusion with (1+ LO_PROC)
     upx_uint64_t check_pt_load(Elf64_Phdr const *);
     upx_uint64_t check_pt_dynamic(Elf64_Phdr const *);
     void invert_pt_dynamic(Elf64_Dyn const *, upx_uint64_t dt_filesz);

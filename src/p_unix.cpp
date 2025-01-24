@@ -2,9 +2,9 @@
 
    This file is part of the UPX executable compressor.
 
-   Copyright (C) 1996-2024 Markus Franz Xaver Johannes Oberhumer
-   Copyright (C) 1996-2024 Laszlo Molnar
-   Copyright (C) 2000-2024 John F. Reiser
+   Copyright (C) 1996-2025 Markus Franz Xaver Johannes Oberhumer
+   Copyright (C) 1996-2025 Laszlo Molnar
+   Copyright (C) 2000-2025 John F. Reiser
    All Rights Reserved.
 
    UPX and the UCL library are free software; you can redistribute them
@@ -56,9 +56,13 @@ PackUnix::PackUnix(InputFile *f) :
     COMPILE_TIME_ASSERT(sizeof(l_info) == 12)
     COMPILE_TIME_ASSERT(sizeof(p_info) == 12)
 
-    // Disable --android-shlib, file-by-file; undecided how to fix.
+    // opt->o_unix.android_shlib is global, but must be hint
+    // that applies only when an actual ET_DYN on EM_ARM (only!).
+    // User might say "--android-shlib" but give mulitple files
+    // where some are ET_EXEC.
     saved_opt_android_shlib = opt->o_unix.android_shlib;
-    opt->o_unix.android_shlib = 0;
+    opt->o_unix.android_shlib = 0;  // Must apply selectively
+    // Besides, cannot figure out why asl_slide_Shdrs does not work.
 }
 
 PackUnix::~PackUnix()
@@ -396,7 +400,7 @@ void PackUnix::packExtent(
             ph.c_len = ph.u_len;
             memcpy(obuf, ibuf, ph.c_len);
             // must update checksum of compressed data
-            ph.c_adler = upx_adler32(ibuf, ph.u_len, init_c_adler);
+            ph.c_adler = upx_adler32(ibuf, ph.u_len, ph.c_adler);
         }
 
         // write block sizes
@@ -405,8 +409,10 @@ void PackUnix::packExtent(
             unsigned hdr_c_len = 0;
             MemBuffer hdr_obuf;
             hdr_obuf.allocForCompression(hdr_u_len);
-            int r = upx_compress(hdr_ibuf, hdr_u_len, hdr_obuf, &hdr_c_len, nullptr,
-                ph_forced_method(ph.method), 10, nullptr, nullptr);
+            int r = upx_compress(hdr_ibuf, hdr_u_len, hdr_obuf, &hdr_c_len,
+                /* &progress callback */ nullptr,
+                ph_forced_method(ph.method), 10,
+                /* &config_t */ nullptr, /* &result_t */ nullptr);
             if (r != UPX_E_OK)
                 throwInternalError("header compression failed");
             if (hdr_c_len >= hdr_u_len)

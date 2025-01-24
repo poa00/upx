@@ -2,8 +2,8 @@
 
    This file is part of the UPX executable compressor.
 
-   Copyright (C) 1996-2024 Markus Franz Xaver Johannes Oberhumer
-   Copyright (C) 1996-2024 Laszlo Molnar
+   Copyright (C) 1996-2025 Markus Franz Xaver Johannes Oberhumer
+   Copyright (C) 1996-2025 Laszlo Molnar
    All Rights Reserved.
 
    UPX and the UCL library are free software; you can redistribute them
@@ -879,6 +879,7 @@ void Packer::relocateLoader() {
 //  -1:  try all filters, use first working one
 //  -2:  try only the opt->filter filter
 //  -3:  use no filter at all
+//  -4:  use no filter at all, and build no loader, either
 //
 // This has been prepared for generalization into class Packer so that
 // opt->all_methods and/or opt->all_filters are available for all
@@ -952,7 +953,7 @@ static int prepareFilters(int *filters, int &filter_strategy, const int *all_fil
     }
     assert(filter_strategy != 0);
 
-    if (filter_strategy == -3)
+    if (filter_strategy <= -3)
         goto done;
     if (filter_strategy == -2) {
         if (opt->filter >= 0 && Filter::isValidFilter(opt->filter, all_filters)) {
@@ -1134,9 +1135,11 @@ void Packer::compressWithFilters(byte *i_ptr,
                     best_ph.c_len + best_ph_lsize + best_hdr_c_len) {
                     // get results
                     ph.overlap_overhead = findOverlapOverhead(o_tmp, i_ptr, overlap_range);
-                    buildLoader(&ft);
-                    lsize = getLoaderSize();
-                    assert(lsize > 0);
+                    if (-4 < filter_strategy) {
+                        buildLoader(&ft);
+                        lsize = getLoaderSize();
+                        assert(lsize > 0);
+                    }
                 }
                 NO_printf("\n%2d %02x: %d +%4d +%3d = %d  (best: %d +%4d +%3d = %d)\n", ph.method,
                           ph.filter, ph.c_len, lsize, hdr_c_len, ph.c_len + lsize + hdr_c_len,
@@ -1227,7 +1230,7 @@ void Packer::compressWithFilters(Filter *ft, const unsigned overlap_range,
     unsigned i_len = ph.u_len;
     byte *o_ptr = obuf + obuf_off;
     unsigned f_len = ft->buf_len ? ft->buf_len : i_len;
-    if (filter_strategy == -3) {
+    if (filter_strategy <= -3) {
         filter_off = 0;
         f_len = 0;
     }

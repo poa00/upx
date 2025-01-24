@@ -23,6 +23,8 @@ NBPW= 8
 //   MATCH_07  envp
 
   section SO_HEAD
+PAGE_MASK: .quad 0xfffffffffffff000
+    .quad 0  // ? FIXME
 fold:
     pop %rbx  // MATCH_11  ptr unfolded code
     pop %rbp  // MATCH_10  len unfolded code
@@ -44,6 +46,10 @@ fold:
         //  pop %arg2  // MATCH_01  argv
         //  pop %arg3  // MATCH_07  envp
         //  ret  // ==> user_DT_INIT
+
+get_page_mask: .globl get_page_mask
+    mov PAGE_MASK(%rip),%rax
+    ret
 
   section ptr_NEXT
 //    pop %rax; call *%rax
@@ -98,10 +104,12 @@ __NR_read=  0
 __NR_write= 1
 //__NR_open=  2
 __NR_openat= 257
+  FD_CWD= -100
 __NR_close= 3
 
 __NR_mmap=      9
 __NR_mprotect= 10
+__NR_msync=    26  // 0x1a
 __NR_munmap=   11
 __NR_mremap=  216
 __NR_memfd_create= 0x13f  // 319
@@ -114,6 +122,20 @@ __NR_readlink= 89
 
 
 O_BINFO: .globl O_BINFO  # ignored dummy needed by elf-entry.o
+
+Psync: .globl Psync
+        mov PAGE_MASK(%rip),%rax; not %eax; and %edi,%eax
+        sub %rax,%rdi
+        add %rax,%rsi
+msync: .globl msync
+        push $__NR_msync; 5: jmp 5f
+
+Pprotect: .globl Pprotect
+        mov PAGE_MASK(%rip),%rax; not %eax; and %edi,%eax
+        sub %rax,%rdi
+        add %rax,%rsi
+mprotect: .globl mprotect
+        push $ __NR_mprotect; 5: jmp 5f
 
 Pmap: .globl Pmap
         mov %arg1,%rax; and $0xfff,%eax
@@ -146,8 +168,17 @@ sysgo:  # NOTE: kernel demands 4th arg in %sys4, NOT %arg4
   pop %r9
   pop %r10
 #endif  //}
+        push %rax  // debugging clue: __NR_
         syscall; cmp $-4096,%rax; jb 0f; int3; 0:
+        add $NBPW,%rsp  // toss __NR_
         ret
+
+open: .globl open
+        mov %arg3,%arg4
+        mov %arg2,%arg3
+        mov %arg1,%arg2
+        mov $FD_CWD,%arg1
+        jmp openat
 
 Punmap: .globl Punmap  // page-align the lo end
         mov %arg1,%rax; and $0xfff,%eax
@@ -169,14 +200,6 @@ Pwrite: .globl Pwrite
 write: .globl write
         push $__NR_write; 5: jmp 5f
 read: .globl read
-        push $ __NR_read; 5: jmp 5f
-
-// Sometimes Linux enforces page-aligned address for mprotect
-Pprotect: .globl Pprotect
-        mov %rdi,%rax; and $-1+ (1<<12),%rax
-        sub %rax,%rdi
-        add %rax,%rsi
-mprotect: .globl mprotect
-        push $ __NR_mprotect; 5: jmp sysgo
+        push $ __NR_read; 5: jmp sysgo
 
 // section SO_MAIN inserted here

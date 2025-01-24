@@ -2,9 +2,9 @@
 
    This file is part of the UPX executable compressor.
 
-   Copyright (C) 1996-2024 Markus Franz Xaver Johannes Oberhumer
-   Copyright (C) 1996-2024 Laszlo Molnar
-   Copyright (C) 2000-2024 John F. Reiser
+   Copyright (C) 1996-2025 Markus Franz Xaver Johannes Oberhumer
+   Copyright (C) 1996-2025 Laszlo Molnar
+   Copyright (C) 2000-2025 John F. Reiser
    All Rights Reserved.
 
    UPX and the UCL library are free software; you can redistribute them
@@ -43,17 +43,13 @@ src  .req x0
 lsrc .req w1
 dst  .req x2
 ldst .req x3  /* Out: actually a reference: &len_dst */
-meth .req w4
-
-#define M_LZMA          14
-        cmp meth,#M_LZMA; bne not_lzma
 
 t0   .req w7
 t1   .req w8
 t1x  .req x8
 
-        PUSH4(x2,x3, fp,lr)  // dst,ldst, fp,lr
-        mov fp,sp
+        PUSH4(x2,x3, fp,lr)  // MATCH_94  dst,ldst, fp,lr
+        mov fp,sp  // we use alloca (inlined and zeroed)
 
 #define LZMA_BASE_SIZE 1846
 #define LZMA_LIT_SIZE   768
@@ -69,7 +65,7 @@ t1x  .req x8
         sub sp,sp,t0,uxtw
         mov x4,sp
 1:  // clear lzma probability array
-        stp xzr,xzr,[x4],#2*8
+        stp xzr,xzr,[x4],#2*NBPW
         cmp x4,t1x
         blo 1b
 
@@ -106,19 +102,22 @@ State= 0
         and  t0,t0,#0xf  // lib_context_bits
         strb t0,[a0,#0]
         bl ClangLzmaDecode  // the call
+        mov sp,fp  // undo inlined alloca
 
+#if defined(WINDOWS_BACK) || !defined(DAISY_CHAIN)  //{
 eof_lzma:
-        mov sp,fp
         mov x5,x0  // save result value
-        POP4(x0,x1, fp,lr)  // x0= orig_dst; x1= plen_dst
+        POP4(x0,x1, fp,lr)  // MATCH_94  x0= orig_dst; x1= plen_dst
         ldr x1,[x1]  // outSizeProcessed
 
         add x1,x1,x0  // last
-cache_lzma:
         sync_cache  // x0= lo; x1= hi; uses x2-x4
 
         mov x0,x5  // result value
         ret
+#else  //}{
+        b eof_lzma
+#endif  //}
 
 #undef t0
 #undef t1
@@ -126,14 +125,11 @@ cache_lzma:
 
 #undef lsrc
 #undef ldst
-#undef meth
 
-ClangLzmaDecode:  // entry to C-lang LzmaDecode in next section
     .unreq src
     .unreq lsrc
     .unreq dst
     .unreq ldst
-    .unreq meth
     .unreq t0
     .unreq t1
     .unreq t1x
@@ -145,6 +141,7 @@ ClangLzmaDecode:  // entry to C-lang LzmaDecode in next section
     .unreq a5
     .unreq a6
 
+ClangLzmaDecode:  // entry to C-lang LzmaDecode in next section
   section LZMA_DEC20
 #include "lzma_d_cf.S"
 
@@ -157,8 +154,7 @@ ClangLzmaDecode:  // entry to C-lang LzmaDecode in next section
 #endif  /*}*/
 
   section LZMA_DEC30
-
-not_lzma:
+not_lzma:  // fall into daisy chain
 
 // vi:ts=8:et
 

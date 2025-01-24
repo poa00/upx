@@ -2,8 +2,8 @@
 
    This file is part of the UPX executable compressor.
 
-   Copyright (C) 1996-2024 Markus Franz Xaver Johannes Oberhumer
-   Copyright (C) 1996-2024 Laszlo Molnar
+   Copyright (C) 1996-2025 Markus Franz Xaver Johannes Oberhumer
+   Copyright (C) 1996-2025 Laszlo Molnar
    All Rights Reserved.
 
    UPX and the UCL library are free software; you can redistribute them
@@ -346,7 +346,7 @@ int PackVmlinuzI386::decompressKernel()
         // some checks
         if (fd_pos != file_size)
         {
-            NO_printf("fd_pos: %lld, file_size: %lld\n", fd_pos, file_size);
+            NO_printf("fd_pos: %jd, file_size: %lld\n", (intmax_t) fd_pos, file_size);
 
             // linux-2.6.21.5/arch/i386/boot/compressed/vmlinux.lds
             // puts .data.compressed ahead of .text, .rodata, etc;

@@ -2,8 +2,8 @@
 
    This file is part of the UPX executable compressor.
 
-   Copyright (C) 1996-2024 Markus Franz Xaver Johannes Oberhumer
-   Copyright (C) 1996-2024 Laszlo Molnar
+   Copyright (C) 1996-2025 Markus Franz Xaver Johannes Oberhumer
+   Copyright (C) 1996-2025 Laszlo Molnar
    All Rights Reserved.
 
    UPX and the UCL library are free software; you can redistribute them
@@ -258,7 +258,7 @@ void PeFile::Interval::add_interval(const Interval *other) {
 void PeFile::Interval::flatten() {
     if (!ivnum)
         return;
-    upx_qsort(ivarr, ivnum, sizeof(interval), Interval::compare);
+    upx_qsort(ivarr, ivnum, sizeof(ivarr[0]), Interval::compare);
     for (unsigned ic = 0; ic < ivnum - 1; ic++) {
         unsigned jc;
         for (jc = ic + 1; jc < ivnum && ivarr[ic].start + ivarr[ic].len >= ivarr[jc].start; jc++)
@@ -287,7 +287,7 @@ void PeFile::Interval::dump() const {
 **************************************************************************/
 
 // do NOT allow --force to override reloc checks
-static constexpr bool CHECK_STRICT_RELOCS = true;
+static constexpr bool ALWAYS_CHECK_STRICT_RELOCS = true;
 
 void PeFile::Reloc::RelocationBlock::reset() noexcept {
     rel = nullptr;  // SPAN_0
@@ -375,7 +375,7 @@ bool PeFile::Reloc::readFromRelocationBlock(byte *next_rb) { // set rb
     if (sob == 0 && (off == 0 && start_size_in_bytes == 8))
         return false; // EOF
 #endif
-    if (CHECK_STRICT_RELOCS) {
+    if (ALWAYS_CHECK_STRICT_RELOCS) {
         if (sob < 8)
             throwCantPack("bad reloc size_of_block %u", sob);
         if (start_size_in_bytes - off < sob)
@@ -456,7 +456,7 @@ void PeFile::Reloc::finish(byte *(&result_ptr), unsigned &result_size) {
         unsigned pos, reloc_type;
         reloc_entry_decode(entry_ptr, &pos, &reloc_type);
         if (ic > 0 && pos == prev_pos) {
-            if (CHECK_STRICT_RELOCS)
+            if (ALWAYS_CHECK_STRICT_RELOCS)
                 throwCantPack("duplicate relocs");
             else if (!opt->force)
                 throwCantPack("duplicate relocs (try --force)");
@@ -878,7 +878,7 @@ public:
 
         // sort the sections by name before adding them all
         // NOLINTNEXTLINE(bugprone-multi-level-implicit-pointer-conversion)
-        upx_qsort(sections, nsections, sizeof(Section *), ImportLinker::compare);
+        upx_qsort(sections, nsections, sizeof(sections[0]), ImportLinker::compare);
 
         for (unsigned ic = 0; ic < nsections; ic++)
             addLoader(sections[ic]->name);
@@ -1063,7 +1063,7 @@ unsigned PeFile::processImports0(ord_mask_t ord_mask) { // pass 1
     oimport = mb_oimport;
 
     // NOLINTNEXTLINE(bugprone-multi-level-implicit-pointer-conversion)
-    upx_qsort(idlls, dllnum, sizeof(*idlls), UDll::compare);
+    upx_qsort(idlls, dllnum, sizeof(idlls[0]), UDll::compare);
 
     info("Processing imports: %d DLLs", dllnum);
     for (unsigned ic = 0; ic < dllnum; ic++) {
@@ -2466,7 +2466,7 @@ void PeFile::pack0(OutputFile *fo, ht &ih, ht &oh, unsigned subsystem_mask,
     else if (((identsplit + identsize) ^ identsplit) < oh_filealign)
         identsplit = identsize;
     else
-        identsplit = ALIGN_GAP(identsplit, oh_filealign);
+        identsplit = ALIGN_UP_GAP(identsplit, oh_filealign);
     ic = identsize - identsplit;
 
     const unsigned c_len =

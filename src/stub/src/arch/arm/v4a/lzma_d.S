@@ -2,9 +2,9 @@
 
    This file is part of the UPX executable compressor.
 
-   Copyright (C) 1996-2024 Markus Franz Xaver Johannes Oberhumer
-   Copyright (C) 1996-2024 Laszlo Molnar
-   Copyright (C) 2000-2024 John F. Reiser
+   Copyright (C) 1996-2025 Markus Franz Xaver Johannes Oberhumer
+   Copyright (C) 1996-2025 Laszlo Molnar
+   Copyright (C) 2000-2025 John F. Reiser
    All Rights Reserved.
 
    UPX and the UCL library are free software; you can redistribute them
@@ -38,12 +38,8 @@ src  .req r0
 lsrc .req r1
 dst  .req r2
 ldst .req r3  /* Out: actually a reference: &len_dst */
-#define meth [sp,#0]  /* as arg5 to f_exp: 32-bit unsigned */
 
   // bkpt  // debugging
-
-#define M_LZMA          14
-        ldr ip,meth; cmp ip,#M_LZMA; bne not_lzma
 
 #if defined(LINUX_ARM_CACHEFLUSH)||defined(DARWIN_ARM_CACHEFLUSH)  /*{*/
         PUSH {dst,ldst, fp,lr}  // dst,ldst for cache flush
@@ -104,7 +100,7 @@ a0 .req r0
         strb ip,[sp,#0 + State]
 
         add a0,sp,#State
-        bl 1f  // the call
+        bl 1f  // call C-language LzmaDecompress
         mov sp,fp
 
 #if defined(LINUX_ARM_CACHEFLUSH)  /*{*/
@@ -126,10 +122,8 @@ a0 .req r0
 #endif  /*}*/
 
         POP {fp,pc}  // RETURN!
-not_lzma:
-        b not_lzma  // bkpt  we are lost
 
-1: // fall through into lzma decoding subroutine
+1: // either LZMA_DEC10 or LZMA_DEC20 inserted next by buildLinuxLoader
 
   section LZMA_DEC20
 #include "lzma_d_cf.S"

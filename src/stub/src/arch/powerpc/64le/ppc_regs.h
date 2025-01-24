@@ -1,44 +1,46 @@
 #ifndef __PPC_REGS__  /*{*/
 #define __PPC_REGS__ 1
 
-#define r0 0
-#define r1 1
-#define r2 2
-#define r3 3
-#define r4 4
-#define r5 5
-#define r6 6
-#define r7 7
-#define r8 8
-#define r9 9
-#define r10 10
-#define r11 11
-#define r12 12
-#define r13 13
-#define r14 14
-#define r15 15
-#define r16 16
-#define r17 17
-#define r18 18
-#define r19 19
-#define r20 20
-#define r21 21
-#define r22 22
-#define r23 23
-#define r24 24
-#define r25 25
-#define r26 26
-#define r27 27
-#define r28 28
-#define r29 29
-#define r30 30
-#define r31 31
+r0= 0
+r1= 1
+r2= 2
+r3= 3
+r4= 4
+r5= 5
+r6= 6
+r7= 7
+r8= 8
+r9= 9
+r10= 10
+r11= 11
+r12= 12
+r13= 13
+r14= 14
+r15= 15
+r16= 16
+r17= 17
+r18= 18
+r19= 19
+r20= 20
+r21= 21
+r22= 22
+r23= 23
+r24= 24
+r25= 25
+r26= 26
+r27= 27
+r28= 28
+r29= 29
+r30= 30
+r31= 31
+
+NBPW= 8  // Number of Bytes Per Word
 
 /* Stack pointer */
-#define sp 1
-SZ_FRAME= 6*8 + 8*8  // (sp,cr,lr, tmp.xlc,tmp.ld,save.toc) + spill area for a0-a7
+sp= 1
+SZ_FRAME= 6*NBPW + 8*NBPW  // (sp,cr,lr, tmp.xlc,tmp.ld,save.toc) + spill area for a0-a7
 F_TOC=    SZ_FRAME  // where is the fake TOC
-SZ_FRAME= SZ_FRAME + 2*2*8  // space for 2 [short] TOC entries
+SZ_FRAME= SZ_FRAME + 2*2*NBPW  // space for 2 [short] TOC entries
 
 // http://refspecs.linuxfoundation.org/ELF/ppc64/PPC-elf64abi.html#REG
 // r0        Volatile register used in function prologs
@@ -57,19 +59,19 @@ SZ_FRAME= SZ_FRAME + 2*2*8  // space for 2 [short] TOC entries
 // CR5-CR7   Volatile condition code register fields
 
 /* Subroutine arguments; not saved by callee */
-#define a0 3
-#define a1 4
-#define a2 5
-#define a3 6
-#define a4 7
-#define a5 8
-#define a6 9
-#define a7 10
+a0= r3
+a1= r4
+a2= r5
+a3= r6
+a4= r7
+a5= r8
+a6= r9
+a7= r10
 
 /* Scratch (temporary) registers; not saved by callee */
-#define t1 11
-#define t2 12
-#define t3 13
+t1= r11
+t2= r12
+t3= r13
 
 /* branch and link */
 #define call bl

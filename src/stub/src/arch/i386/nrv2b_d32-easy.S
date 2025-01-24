@@ -2,9 +2,9 @@
 
    This file is part of the UPX executable compressor.
 
-   Copyright (C) 1996-2024 Markus Franz Xaver Johannes Oberhumer
-   Copyright (C) 1996-2024 Laszlo Molnar
-   Copyright (C) 2000-2024 John F. Reiser
+   Copyright (C) 1996-2025 Markus Franz Xaver Johannes Oberhumer
+   Copyright (C) 1996-2025 Laszlo Molnar
+   Copyright (C) 2000-2025 John F. Reiser
    All Rights Reserved.
 
    UPX and the UCL library are free software; you can redistribute them
@@ -38,7 +38,7 @@ lit_n2b:
         incl %esi; movb %dl,(%edi)
         incl %edi
 top_n2b:
-        movb (%esi),%dl  # prefetch: literal, or bottom 8 bits of offset
+        movzbl (%esi),%edx  # prefetch: literal, or bottom 8 bits of offset
         jnextb1yp lit_n2b
         push $1; pop off
 offmore_n2b:
@@ -46,8 +46,8 @@ offmore_n2b:
         jnextb0np offmore_n2b
 
         subl $ 3,off; jc len_n2b  # use previous offset
-        shll $ 8,off; movzbl %dl,%edx
-        orl %edx,off; incl %esi
+        shll $ 8,off; incl %esi
+        orl %edx,off
         xorl $~0,off; jz eof
         movl     off,disp
 len_n2b:

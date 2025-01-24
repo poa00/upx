@@ -57,13 +57,13 @@ f_unfilter:  @ on stack: (char *ptr, uint len, uint cto, uint fid)  // not calla
 
         t1   .req r2
         t2   .req r3
-
 #ifndef FILTER_ID  /*{*/
 #define FILTER_ID 0x50  /* little-endian */
 #endif  /*}*/
         and fid,fid,#0xff
+        bic fid,fid,#1  @ 0x51 ==> 0x50
         cmp fid,#FILTER_ID  @ last use of fid
-        movne pc,lr  @ no-op if not filter 0x50
+        movne pc,lr  @ no-op if not filter 0x50 or 0x51
 
         movs  len,len,lsr #2  @ word count
         cmpne ptr,#0
@@ -91,13 +91,22 @@ tst_unf:
     .unreq t1
     .unreq t2
 
-get4:  // un-aligned fetch (little endian)
-    mov r1,r0
-    ldrb r0,[r1],#1
-    ldrb r2,[r1],#1; orr r0,r0,r2,lsl #8
-    ldrb r2,[r1],#1; orr r0,r0,r2,lsl #16
-    ldrb r2,[r1],#1; orr r0,r0,r2,lsl #24
+get4:  // un-aligned fetch
+#if !defined(BIG_ENDIAN) || !BIG_ENDIAN  // little-endian
+    mov r2,r0
+    ldrb r0,[r0,#0]
+    ldrb r1,[r2,#1]; orr r0,r0,r1,lsl #8
+    ldrb r1,[r2,#2]; orr r0,r0,r1,lsl #16
+    ldrb r1,[r2,#3]; orr r0,r0,r1,lsl #24
     ret
+# else  // big-endian
+    mov r2,r0
+    ldrb r0,[r0,#3]
+    ldrb r1,[r2,#2]; orr r0,r0,r1,lsl #8
+    ldrb r1,[r2,#1]; orr r0,r0,r1,lsl #16
+    ldrb r1,[r2,#0]; orr r0,r0,r1,lsl #24
+    ret
+#endif
 
 // int f_expand(nrv_byte const *src, nrv_byte *dst, size_t *dstlen)
 // Includes unfilter and cache flush.
@@ -143,12 +152,14 @@ no_filt:
     ldr arg1,[sp,#1*NBPW]  // dst
     ldr arg2,[arg2]  // dstlen
     add arg2,arg2,arg1  // &dst[dstlen]
-    call __clear_cache
+    //call __clear_cache  // subsumed by write()+mmap()
 
     mov r0,#0; str r0,[sp]  // success return from f_expand  FIXME
     ldmia sp!,{r0,r1,r2,r3,r4,r5,r6,r7,pc}  // end f_expand
 
-decompress:  // sections NRV2B, etc, follow
+decompress:  // (src *, cpr_len, dst *, &dstlen);
+    // Fall into 'section's of daisy chain of decompressors
+    // The selected decompressor will 'ret'urn from the 'call'.
 
   section EXP_TAIL
         src .req r0
@@ -158,7 +169,8 @@ decompress:  // sections NRV2B, etc, follow
   .globl eof
 eof:  // end of a compressed extent
         POP {tmp}  // &input_eof
-        mov r0,src; SUB2 r0,tmp  // src -= eof;  // return 0: good; else: bad
+        mov r0,src; SUB2S r0,tmp  // src -= eof
+          beq 0f; bkpt; 0:  // return 0: good; else: bad
         POP {tmp}  // original dst
         POP {r1}; SUB2 dst,tmp  // dst -= original dst
         POP {tmp}; str dst,[tmp]  // actual length used at dst  XXX: 4GB
@@ -167,6 +179,10 @@ eof:  // end of a compressed extent
     .unreq src
     .unreq dst
     .unreq tmp
+
+        .balign 4
+upx_mmap_and_fd: .globl upx_mmap_and_fd
+    // UMF_ANDROID or UMF_LINUX must be loaded after EXP_TAIL
 
 #define M_NRV2B_LE32    2
 #define M_NRV2B_8    3
@@ -178,14 +194,22 @@ eof:  // end of a compressed extent
 #define M_LZMA          14
 
   section NRV2E
+    cmp r4,#M_NRV2E_8; bne not_nrv2e_d8
 #include "arch/arm/v4a/nrv2e_d8.S"
+not_nrv2e_d8:
 
   section NRV2D
+    cmp r4,#M_NRV2D_8; bne not_nrv2d_d8
 #include "arch/arm/v4a/nrv2d_d8.S"
+not_nrv2d_d8:
 
   section NRV2B
+    cmp r4,#M_NRV2B_8; bne not_nrv2b_d8
 #include "arch/arm/v4a/nrv2b_d8.S"
+not_nrv2b_d8:
 
-/* lzma has its own 'section's */
+  section LZMA_DAISY
+    cmp r4,#M_LZMA; bne not_lzma
 #include "arch/arm/v4a/lzma_d.S"
+not_lzma:
 

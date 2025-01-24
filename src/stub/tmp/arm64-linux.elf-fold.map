@@ -6,48 +6,89 @@ Name             Origin             Length             Attributes
 
 Linker script and memory map
 
-                0x00000000001000bc                . = ((0x100000 + SIZEOF_HEADERS) + 0xc)
-
-.text           0x00000000001000bc      0xae4
- *(.text)
- .text          0x00000000001000bc      0x300 tmp/arm64-linux.elf-fold.o
-                0x00000000001000c4                get_page_mask
-                0x00000000001000d4                mmap_privanon
-                0x00000000001000e4                mmap
-                0x0000000000100100                Pprotect
-                0x0000000000100100                mprotect
-                0x0000000000100318                my_bkpt
-                0x0000000000100320                exit
-                0x0000000000100328                read
-                0x0000000000100334                write
-                0x0000000000100340                close
-                0x000000000010034c                getpid
-                0x0000000000100358                brk
-                0x0000000000100364                munmap
-                0x0000000000100370                unlink
-                0x0000000000100384                readlink
-                0x000000000010038c                open
-                0x00000000001003a8                __clear_cache
- .text          0x00000000001003bc      0x7e4 tmp/arm64-linux.elf-main.o
-                0x0000000000100a38                upx_main
- *(.data)
- .data          0x0000000000100ba0        0x0 tmp/arm64-linux.elf-fold.o
- .data          0x0000000000100ba0        0x0 tmp/arm64-linux.elf-main.o
-
-.iplt           0x0000000000100ba0        0x0
- .iplt          0x0000000000100ba0        0x0 tmp/arm64-linux.elf-fold.o
-
-.rela.dyn       0x0000000000100ba0        0x0
- .rela.iplt     0x0000000000100ba0        0x0 tmp/arm64-linux.elf-fold.o
-
-.data
+                0x0000000000000040                . = SIZEOF_HEADERS
 LOAD tmp/arm64-linux.elf-fold.o
-LOAD tmp/arm64-linux.elf-main.o
+LOAD tmp/arm64-expand.o
+LOAD tmp/arm64-linux.elf-main2.o
 OUTPUT(tmp/arm64-linux.elf-fold.bin elf64-littleaarch64)
 
-.igot.plt       0x0000000000100ba0        0x0
- .igot.plt      0x0000000000100ba0        0x0 tmp/arm64-linux.elf-fold.o
+.text           0x0000000000000000      0xb2c
+ .text          0x0000000000000000      0x264 tmp/arm64-linux.elf-fold.o
+                0x0000000000000008                get_page_mask
+                0x0000000000000018                mmap_privanon
+                0x0000000000000028                Psync
+                0x0000000000000038                msync
+                0x0000000000000044                mmap
+                0x0000000000000060                Pprotect
+                0x0000000000000060                mprotect
+ .text          0x0000000000000264        0x0 tmp/arm64-expand.o
+ .text          0x0000000000000264      0x8c8 tmp/arm64-linux.elf-main2.o
+                0x0000000000000988                underlay
+                0x00000000000009f4                upx_main2
 
-.bss            0x0000000000100ba0        0x0
- .bss           0x0000000000100ba0        0x0 tmp/arm64-linux.elf-fold.o
- .bss           0x0000000000100ba0        0x0 tmp/arm64-linux.elf-main.o
+.data           0x0000000000000000        0x0
+ .data          0x0000000000000000        0x0 tmp/arm64-linux.elf-fold.o
+ .data          0x0000000000000000        0x0 tmp/arm64-expand.o
+ .data          0x0000000000000000        0x0 tmp/arm64-linux.elf-main2.o
+
+.bss            0x0000000000000000        0x0
+ .bss           0x0000000000000000        0x0 tmp/arm64-linux.elf-fold.o
+ .bss           0x0000000000000000        0x0 tmp/arm64-expand.o
+ .bss           0x0000000000000000        0x0 tmp/arm64-linux.elf-main2.o
+
+SYSCALLS        0x0000000000000000      0x118
+ SYSCALLS       0x0000000000000000      0x118 tmp/arm64-linux.elf-fold.o
+                0x0000000000000000                my_bkpt
+                0x0000000000000008                exit
+                0x0000000000000010                read
+                0x000000000000001c                write
+                0x0000000000000028                close
+                0x0000000000000034                getpid
+                0x0000000000000040                brk
+                0x000000000000004c                munmap
+                0x000000000000005c                upxfd_create
+                0x000000000000009c                ftruncate
+                0x00000000000000a8                unlink
+                0x00000000000000bc                readlink
+                0x00000000000000c4                open
+                0x00000000000000e0                __clear_cache
+                0x00000000000000f4                memcpy
+                0x0000000000000108                memset
+
+EXP_HEAD        0x0000000000000000      0x104
+ EXP_HEAD       0x0000000000000000      0x104 tmp/arm64-expand.o
+                0x0000000000000000                f_expand
+
+EXP_TAIL        0x0000000000000000       0x54
+ EXP_TAIL       0x0000000000000000       0x54 tmp/arm64-expand.o
+                0x000000000000000c                eof
+                0x0000000000000048                eof_lzma
+                0x0000000000000054                upx_mmap_and_fd
+
+NRV2E           0x0000000000000000       0xf4
+ NRV2E          0x0000000000000000       0xf4 tmp/arm64-expand.o
+                0x0000000000000008                ucl_nrv2e_decompress_32
+
+NRV2D           0x0000000000000000       0xe8
+ NRV2D          0x0000000000000000       0xe8 tmp/arm64-expand.o
+                0x0000000000000008                ucl_nrv2d_decompress_32
+
+NRV2B           0x0000000000000000       0xbc
+ NRV2B          0x0000000000000000       0xbc tmp/arm64-expand.o
+                0x0000000000000008                ucl_nrv2b_decompress_32
+
+LZMA_DAISY      0x0000000000000000        0x8
+ LZMA_DAISY     0x0000000000000000        0x8 tmp/arm64-expand.o
+
+LZMA_ELF00      0x0000000000000000       0x84
+ LZMA_ELF00     0x0000000000000000       0x84 tmp/arm64-expand.o
+
+LZMA_DEC20      0x0000000000000000      0x968
+ LZMA_DEC20     0x0000000000000000      0x968 tmp/arm64-expand.o
+
+LZMA_DEC10      0x0000000000000000      0x4a0
+ LZMA_DEC10     0x0000000000000000      0x4a0 tmp/arm64-expand.o
+                0x0000000000000000                LzmaDecode
+
+LZMA_DEC30      0x0000000000000000        0x0
+ LZMA_DEC30     0x0000000000000000        0x0 tmp/arm64-expand.o

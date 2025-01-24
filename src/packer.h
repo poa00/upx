@@ -2,8 +2,8 @@
 
    This file is part of the UPX executable compressor.
 
-   Copyright (C) 1996-2024 Markus Franz Xaver Johannes Oberhumer
-   Copyright (C) 1996-2024 Laszlo Molnar
+   Copyright (C) 1996-2025 Markus Franz Xaver Johannes Oberhumer
+   Copyright (C) 1996-2025 Laszlo Molnar
    All Rights Reserved.
 
    UPX and the UCL library are free software; you can redistribute them
@@ -126,8 +126,8 @@ public:
 
 protected:
     // unpacker tests - these may throw exceptions
-    virtual bool testUnpackVersion(int version) const;
-    virtual bool testUnpackFormat(int format) const;
+    virtual bool testUnpackVersion(int version) const may_throw;
+    virtual bool testUnpackFormat(int format) const may_throw;
 
 protected:
     // implementation
@@ -260,6 +260,7 @@ protected:
     // permissive version using "void *"
     inline unsigned get_te16(const void *p) const noexcept { return bele->get16(p); }
     inline unsigned get_te32(const void *p) const noexcept { return bele->get32(p); }
+    inline unsigned get_te64_32(const void *p) const { return (unsigned) bele->get64(p); }
     inline upx_uint64_t get_te64(const void *p) const noexcept { return bele->get64(p); }
     inline void set_te16(void *p, unsigned v) noexcept { bele->set16(p, v); }
     inline void set_te32(void *p, unsigned v) noexcept { bele->set32(p, v); }
@@ -290,6 +291,13 @@ protected:
     template <class T, class = enable_if_te32<T> >
     inline unsigned get_te32(const T *p) const noexcept {
         return bele->get32(p);
+    }
+    template <class T, class = enable_if_te64<T> >
+    inline unsigned get_te64_32(const T *p) const {
+        upx_uint64_t val = get_te64(p);
+        if (val >> 32)
+            throwCantPack("64-bit value too big %#llx", val);
+        return (unsigned) val;
     }
     template <class T, class = enable_if_te64<T> >
     inline upx_uint64_t get_te64(const T *p) const noexcept {

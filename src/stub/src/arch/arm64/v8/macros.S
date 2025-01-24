@@ -3,8 +3,8 @@
 ;
 ;  This file is part of the UPX executable compressor.
 ;
-;  Copyright (C) 1996-2024 Markus Franz Xaver Johannes Oberhumer
-;  Copyright (C) 1996-2024 Laszlo Molnar
+;  Copyright (C) 1996-2025 Markus Franz Xaver Johannes Oberhumer
+;  Copyright (C) 1996-2025 Laszlo Molnar
 ;  All Rights Reserved.
 ;
 ;  UPX and the UCL library are free software; you can redistribute them
@@ -33,6 +33,18 @@ lr .req x30
 fp .req x29
 NBPW= 8
                 .altmacro
+#define bkpt   brk #0
+
+/* macros reduce "noise" when comparing this ARM code to corresponding THUMB code */
+#define ADD2( dst,src) add  dst,dst,src
+#define ADD2S(dst,src) adds dst,dst,src
+#define ADC2( dst,src) adc  dst,dst,src
+#define ADC2S(dst,src) adcs dst,dst,src
+#define SUB2( dst,src) sub  dst,dst,src
+#define SUB2S(dst,src) subs dst,dst,src
+#define  LDR3(reg,psrc,incr) ldr  reg,psrc,incr
+#define LDRB3(reg,psrc,incr) ldrb reg,psrc,incr
+#define STRB3(reg,pdst,incr) strb reg,pdst,incr
 
 // ARM64 (AARCH64) REQUIRES 16-BYTE ALIGNED STACK POINTER (SP)
 // Therefore PUSH of an odd number of registers, inserts an 8-byte hole.

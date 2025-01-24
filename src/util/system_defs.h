@@ -2,7 +2,7 @@
 
    This file is part of the UPX executable compressor.
 
-   Copyright (C) 1996-2024 Markus Franz Xaver Johannes Oberhumer
+   Copyright (C) 1996-2025 Markus Franz Xaver Johannes Oberhumer
    All Rights Reserved.
 
    UPX and the UCL library are free software; you can redistribute them
@@ -26,6 +26,8 @@
 
 #pragma once
 
+#include "system_check_predefs.h"
+
 #if !defined(_FILE_OFFSET_BITS)
 #define _FILE_OFFSET_BITS 64
 #endif
@@ -39,6 +41,13 @@
 #endif
 #if !defined(__STDC_LIMIT_MACROS)
 #define __STDC_LIMIT_MACROS 1
+#endif
+
+#if defined(__PTRADDR_TYPE__) && !defined(__SIZEOF_PTRADDR_T__)
+#if !defined(__PTRADDR_WIDTH__)
+#error "missing __PTRADDR_WIDTH__"
+#endif
+#define __SIZEOF_PTRADDR_T__ (__PTRADDR_WIDTH__ / 8)
 #endif
 
 #if !defined(__USE_MINGW_ANSI_STDIO)

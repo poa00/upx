@@ -29,7 +29,7 @@ endif
 run_cmake_config = $(CMAKE) -S . -B $1 $(UPX_CMAKE_CONFIG_FLAGS) -DCMAKE_BUILD_TYPE=$2
 run_cmake_build  = $(CMAKE) --build $1 $(UPX_CMAKE_BUILD_FLAGS) --config $2
 # avoid re-running run_cmake_config if .upx_cmake_config_done.txt already exists
-run_config       = $(if $(wildcard $1/CMakeFiles/.upx_cmake_config_done.txt),,$(call run_cmake_config,$1,$2))
+run_config       = $(if $(wildcard $1/CMakeFiles/.*_cmake_config_done.txt),,$(call run_cmake_config,$1,$2))
 run_build        = $(call run_cmake_build,$1,$2)
 
 build/debug: PHONY
@@ -77,11 +77,12 @@ test: $$(patsubst %+test,%,$$(.DEFAULT_GOAL))+test PHONY
 #
 
 # extra pre-defined build configurations and some utility; optional
-include ./misc/make/Makefile-extra.mk
+-include ./Makevars-local.mk
+-include ./misc/make/Makefile-extra.mk
 
 # developer convenience
 ifneq ($(wildcard /usr/bin/env),) # need Unix utils like bash, perl, sed, xargs, etc.
-ifneq ($(wildcard ./misc/scripts/.),)
+ifneq ($(and $(wildcard ./misc/scripts/.),$(wildcard ./doc/upx.pod)),)
 check-whitespace clang-format run-testsuite run-testsuite-all run-testsuite-debug run-testsuite-release: src/Makefile PHONY
 	$(MAKE) -C src $@
 endif

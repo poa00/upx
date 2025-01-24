@@ -1,8 +1,10 @@
+#ifndef __ppc64le_bxx__
+#define __ppc64le_bxx__
 /* ppc_bxx.S -- PowerPC Branch Trick unfilter
 
    This file is part of the UPX executable compressor.
 
-   Copyright (C) 2005-2024 John F. Reiser
+   Copyright (C) 2005-2025 John F. Reiser
    All Rights Reserved.
 
    UPX and the UCL library are free software; you can redistribute them
@@ -67,3 +69,5 @@ L20:
 #undef cto8
 #undef len
 #undef ptr
+
+#endif

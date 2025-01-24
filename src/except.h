@@ -2,8 +2,8 @@
 
    This file is part of the UPX executable compressor.
 
-   Copyright (C) 1996-2024 Markus Franz Xaver Johannes Oberhumer
-   Copyright (C) 1996-2024 Laszlo Molnar
+   Copyright (C) 1996-2025 Markus Franz Xaver Johannes Oberhumer
+   Copyright (C) 1996-2025 Laszlo Molnar
    All Rights Reserved.
 
    UPX and the UCL library are free software; you can redistribute them
@@ -133,7 +133,7 @@ public:
     CantPackException(const char *m = nullptr, bool w = false) noexcept : super(m, 0, w) {}
 };
 
-class UnknownExecutableFormatException : public CantPackException {
+class UnknownExecutableFormatException final : public CantPackException {
     typedef CantPackException super;
 public:
     UnknownExecutableFormatException(const char *m = nullptr, bool w = false) noexcept

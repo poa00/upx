@@ -2,7 +2,7 @@
 
    This file is part of the UPX executable compressor.
 
-   Copyright (C) 1996-2024 Markus Franz Xaver Johannes Oberhumer
+   Copyright (C) 1996-2025 Markus Franz Xaver Johannes Oberhumer
    All Rights Reserved.
 
    UPX and the UCL library are free software; you can redistribute them
@@ -33,62 +33,6 @@
 #error "FATAL ERROR: C++17 is required"
 #endif
 
-// check expected defines
-#if defined(__CYGWIN32__) && !defined(__CYGWIN__)
-#error "missing __CYGWIN__"
-#endif
-#if defined(__CYGWIN64__) && !defined(__CYGWIN__)
-#error "missing __CYGWIN__"
-#endif
-#if defined(__MINGW64__) && !defined(__MINGW32__)
-#error "missing __MINGW32__"
-#endif
-#if defined(_WIN64) && !defined(_WIN32)
-#error "missing _WIN32"
-#endif
-
-// byte order - these are pre-defined since gcc-4.6 (2011) and clang-3.2 (2012)
-#if defined(__clang__) || defined(__GNUC__)
-#if !defined(__ORDER_BIG_ENDIAN__) || (__ORDER_BIG_ENDIAN__ + 0 == 0)
-#error "missing __ORDER_BIG_ENDIAN__"
-#endif
-#if !defined(__ORDER_LITTLE_ENDIAN__) || (__ORDER_LITTLE_ENDIAN__ + 0 == 0)
-#error "missing __ORDER_LITTLE_ENDIAN__"
-#endif
-#if !defined(__BYTE_ORDER__) || (__BYTE_ORDER__ + 0 == 0)
-#error "missing __BYTE_ORDER__"
-#endif
-#if !defined(__ORDER_BIG_ENDIAN__) || (__ORDER_BIG_ENDIAN__ + 0 != 4321)
-#error "unexpected __ORDER_BIG_ENDIAN__"
-#endif
-#if !defined(__ORDER_BIG_ENDIAN__) || (__ORDER_LITTLE_ENDIAN__ + 0 != 1234)
-#error "unexpected __ORDER_BIG_ENDIAN__"
-#endif
-#if (__BYTE_ORDER__ != __ORDER_BIG_ENDIAN__) && (__BYTE_ORDER__ != __ORDER_LITTLE_ENDIAN__)
-#error "unexpected __BYTE_ORDER__"
-#endif
-#endif
-
-// pic and pie
-#if defined(__PIC__) && defined(__pic__)
-static_assert((__PIC__) == (__pic__));
-#endif
-#if defined(__PIC__)
-static_assert(__PIC__ == 1 || __PIC__ == 2);
-#endif
-#if defined(__pic__)
-static_assert(__pic__ == 1 || __pic__ == 2);
-#endif
-#if defined(__PIE__) && defined(__pie__)
-static_assert((__PIE__) == (__pie__));
-#endif
-#if defined(__PIE__)
-static_assert(__PIE__ == 1 || __PIE__ == 2);
-#endif
-#if defined(__pie__)
-static_assert(__pie__ == 1 || __pie__ == 2);
-#endif
-
 // sanity checks
 #if defined(_ILP32) || defined(__ILP32) || defined(__ILP32__)
 static_assert(sizeof(int) == 4);
@@ -98,7 +42,13 @@ static_assert(sizeof(void *) == 4);
 #if defined(_LP64) || defined(__LP64) || defined(__LP64__)
 static_assert(sizeof(int) == 4);
 static_assert(sizeof(long) == 8);
+#if defined(__CHERI__) && defined(__CHERI_PURE_CAPABILITY__) && (__SIZEOF_POINTER__ == 16)
+// CHERI BUG/FEATURE: obviously CHERI should *NOT* pre-define __LP64__ on P128, but
+//   maybe they do this for porting/compatibility reasons...
+static_assert(sizeof(void *) == 16);
+#else
 static_assert(sizeof(void *) == 8);
+#endif
 #endif
 #if defined(_WIN32)
 static_assert(sizeof(int) == 4);
@@ -132,6 +82,9 @@ static_assert(sizeof(void *) == sizeof(long));
 #pragma warning(disable : 4244) // W3: conversion from 'type1' to 'type2', possible loss of data
 #pragma warning(disable : 4267) // W3: conversion from 'size_t' to 'type', possible loss of data
 #pragma warning(disable : 4820) // W4: padding added after data member
+#if _MSC_VER >= 1800
+#pragma warning(disable : 4464) // W4: relative include path contains '..'
+#endif
 #endif
 
 #undef snprintf
@@ -151,6 +104,7 @@ static_assert(sizeof(void *) == sizeof(long));
 #include <bit>
 #endif
 #include <cstddef>
+#include <cstdint>
 #include <exception>
 #include <new>
 #include <type_traits>
@@ -191,6 +145,9 @@ static_assert(sizeof(void *) == sizeof(long));
 #endif
 #if defined(__SANITIZE_ADDRESS__) || defined(__SANITIZE_MEMORY__) || defined(_WIN32) ||            \
     !defined(__GNUC__)
+#undef WITH_VALGRIND
+#endif
+#if defined(__CHERI__) && defined(__CHERI_PURE_CAPABILITY__)
 #undef WITH_VALGRIND
 #endif
 #if WITH_VALGRIND

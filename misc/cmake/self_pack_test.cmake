@@ -137,7 +137,7 @@ if(NOT UPX_CONFIG_DISABLE_EXHAUSTIVE_TESTS)
             endif()
         endforeach()
     endforeach()
-endif () # UPX_CONFIG_DISABLE_EXHAUSTIVE_TESTS
+endif() # UPX_CONFIG_DISABLE_EXHAUSTIVE_TESTS
 
 # clean up
 set(emu "")

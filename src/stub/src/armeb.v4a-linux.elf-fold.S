@@ -2,7 +2,7 @@
 @
 @  This file is part of the UPX executable compressor.
 @
-@  Copyright (C) 2000-2024 John F. Reiser
+@  Copyright (C) 2000-2025 John F. Reiser
 @  All Rights Reserved.
 @
 @  UPX and the UCL library are free software; you can redistribute them
@@ -27,7 +27,6 @@
 @  <jreiser@users.sourceforge.net>
 @
 
-#define ARM_OLDABI 1
 #define FILTER_ID 0x51  /* big-endian */
 #include "arm.v4a-linux.elf-fold.S"
 #undef FILTER_ID

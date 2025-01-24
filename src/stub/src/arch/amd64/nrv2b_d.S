@@ -2,9 +2,9 @@
 
    This file is part of the UPX executable compressor.
 
-   Copyright (C) 1996-2024 Markus Franz Xaver Johannes Oberhumer
-   Copyright (C) 1996-2024 Laszlo Molnar
-   Copyright (C) 2000-2024 John F. Reiser
+   Copyright (C) 1996-2025 Markus Franz Xaver Johannes Oberhumer
+   Copyright (C) 1996-2025 Laszlo Molnar
+   Copyright (C) 2000-2025 John F. Reiser
    All Rights Reserved.
 
    UPX and the UCL library are free software; you can redistribute them
@@ -34,11 +34,22 @@
 #endif
         jmp top_n2b
 
+#undef EOF
+#ifdef WINDOWS_BACK
+  #define EOF eofb
+#else
+  #define EOF eof_n2b
+#endif
+
 lit_n2b:
         incq %rsi; movb %dl,(%rdi)
         incq %rdi
 top_n2b:
+#ifdef WINDOWS_BACK
         movb (%rsi),%dl  # prefetch: literal, or bottom 8 bits of offset
+#else
+        movzbl (%rsi),%edx  # prefetch: literal, or bottom 8 bits of offset
+#endif
         jnextb1yp lit_n2b
         lea 1(lenq),off  # [len= 0] off= 1
 offmore_n2b:
@@ -46,9 +57,15 @@ offmore_n2b:
         jnextb0np offmore_n2b
 
         subl $ 3,off; jc len_n2b  # use previous offset
+#ifdef WINDOWS_BACK
         shll $ 8,off; movzbl %dl,%edx
         orl %edx,off; incq %rsi
-        xorl $~0,off; jz eof
+        xorl $~0,off; jz EOF
+#else
+        shll $ 8,off; incq %rsi
+        orl %edx,off
+        xorl $~0,off; jz EOF
+#endif
         movslq off,dispq  # XXX: 2GB
 len_n2b:
         lea 1(lenq),off  # [len= 0] off= 1
@@ -62,14 +79,20 @@ lenmore_n2b:
 gotlen_n2b:
         cmpq $-0xd00,dispq
         adcl off,len  # len += off + (disp < -0xd00)
-        call copy
+        call copy; .extern copy
 bot_n2b:  # In: 0==len
         jmp top_n2b
 
-#ifndef NO_METHOD_CHECK
+#ifndef NO_METHOD_CHECK  //{
 not_n2b:
         push %rdi; pop %rsi  # src = arg1
-        # fall into 'eof'
+#ifdef WINDOWS_BACK
+        # fall into 'EOF'
+#endif
+#endif  //}
+
+#ifndef WINDOWS_BACK
+        # fall into daisy chain
 #endif
 /*
 vi:ts=8:et:nowrap

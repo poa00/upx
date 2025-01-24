@@ -2,7 +2,7 @@
 
    This file is part of the UPX executable compressor.
 
-   Copyright (C) 2005-2024 John F. Reiser
+   Copyright (C) 2005-2025 John F. Reiser
    All Rights Reserved.
 
    UPX and the UCL library are free software; you can redistribute them
@@ -27,9 +27,14 @@
 //#include "regs.h"
 
 i386bxx:  # (*f_unf)(xo->buf, out_len, h.b_cto8, h.b_ftid);
-
+        mov 4*NBPW(%esp),%eax  # ftid
 #ifndef NO_METHOD_CHECK
-        cmpl $0x49,4*NBPW(%esp); jne ckend0  # filter: JMP, CALL, 6-byte Jxx
+// Filter 0x46 is 5-byte CALL or unconditional JMP
+// FIlter 0x49 also includes 6-byte consitional Jxx
+        cmpl $0x49,%eax; je cktop
+        cmpl $0x46,%eax; je cktop
+        jmp ckend0
+cktop:
 #endif
         push %ebp; movl %esp,%ebp
         push %ebx  # C-language saved regs
@@ -39,6 +44,7 @@ i386bxx:  # (*f_unf)(xo->buf, out_len, h.b_cto8, h.b_ftid);
         movl 2*NBPW(%ebp),%esi  // src
         movl 3*NBPW(%ebp),%ecx  // len
         movl 4*NBPW(%ebp),%edx  // b_cto8 (%dl)
+        movb %al,%dh  # ftid
         lea (1- 4)(%esi,%ecx),%ecx  # beyond last possible displacement
         movl %esi,%ebx  // start of buffer
         jmp ckstart
@@ -47,6 +53,7 @@ ckloop4:
         push %esi  # tail merge
 ckloop3:
         pop %esi; lodsb  # next main opcode
+        cmpb $0x49,%dh; jne ckloop2  # do not consider 6-byte conditional jxx
         cmpb $0x80,%al; jb ckloop2  # lo of 6-byte Jcc
         cmpb $0x8F,%al; ja ckloop2  # hi of 6-byte Jcc
         cmpb $0x0F,-2(%esi); je ckmark  # prefix of 6-byte Jcc

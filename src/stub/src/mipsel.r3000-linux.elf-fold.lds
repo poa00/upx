@@ -2,7 +2,7 @@
 
    This file is part of the UPX executable compressor.
 
-   Copyright (C) 2000-2024 John F. Reiser
+   Copyright (C) 2000-2025 John F. Reiser
    All Rights Reserved.
 
    UPX and the UCL library are free software; you can redistribute them
@@ -30,19 +30,8 @@
 
 OUTPUT_FORMAT("elf32-littlemips", "elf32-bigmips", "elf32-littlemips")
 OUTPUT_ARCH(mips)
-/*ENTRY(_start)*/
-PHDRS
-{
-    text PT_LOAD FILEHDR PHDRS ;
-    data PT_LOAD ;  /* for setting brk(0) */
-}
+
 SECTIONS
 {
-  . = 0x00100000 + SIZEOF_HEADERS + 12;  /* 12==sizeof(l_info) */
-  .text : {
-    *(.text)
-    *(.data)
-  } : text
-  .data : {
-  } : data
+  . = SIZEOF_HEADERS;
 }

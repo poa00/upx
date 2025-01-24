@@ -2,8 +2,8 @@
 
    This file is part of the UPX executable compressor.
 
-   Copyright (C) 1996-2024 Markus Franz Xaver Johannes Oberhumer
-   Copyright (C) 1996-2024 Laszlo Molnar
+   Copyright (C) 1996-2025 Markus Franz Xaver Johannes Oberhumer
+   Copyright (C) 1996-2025 Laszlo Molnar
    All Rights Reserved.
 
    UPX and the UCL library are free software; you can redistribute them
@@ -48,6 +48,8 @@ unsigned membuffer_get_size(MemBuffer &mb) noexcept { return mb.getSize(); }
 **************************************************************************/
 
 #if defined(__SANITIZE_ADDRESS__) || defined(__SANITIZE_MEMORY__)
+static forceinline constexpr bool use_simple_mcheck() noexcept { return false; }
+#elif defined(__CHERI__) && defined(__CHERI_PURE_CAPABILITY__)
 static forceinline constexpr bool use_simple_mcheck() noexcept { return false; }
 #elif (WITH_VALGRIND) && defined(RUNNING_ON_VALGRIND)
 static bool use_simple_mcheck_flag;
@@ -175,6 +177,8 @@ void MemBuffer::alloc(upx_uint64_t bytes) may_throw {
     size_t malloc_bytes = mem_size(1, bytes); // check size
     if (use_simple_mcheck())
         malloc_bytes += 32;
+    else
+        malloc_bytes += 4;
     byte *p = (byte *) ::malloc(malloc_bytes);
     NO_printf("MemBuffer::alloc %llu: %p\n", bytes, p);
     if (!p)

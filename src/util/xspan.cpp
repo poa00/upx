@@ -2,7 +2,7 @@
 
    This file is part of the UPX executable compressor.
 
-   Copyright (C) 1996-2024 Markus Franz Xaver Johannes Oberhumer
+   Copyright (C) 1996-2025 Markus Franz Xaver Johannes Oberhumer
    All Rights Reserved.
 
    UPX and the UCL library are free software; you can redistribute them
@@ -76,12 +76,7 @@ void xspan_check_range(const void *ptr, const void *base, ptrdiff_t size_in_byte
         xspan_fail_range_nullptr();
     if very_unlikely (base == nullptr)
         xspan_fail_range_nullbase();
-#if defined(__SANITIZE_ADDRESS__) || 1
-    // info: pointers are out of range deliberately during internal doctest checks; see dt_xspan.cpp
-    const upx_sptraddr_t off = ptr_get_address(ptr) - ptr_get_address(base);
-#else
-    const ptrdiff_t off = (const charptr) ptr - (const charptr) base;
-#endif
+    upx_sptraddr_t off = ptraddr_diff(ptr, base);
     if very_unlikely (off < 0 || off > size_in_bytes || size_in_bytes > UPX_RSIZE_MAX)
         xspan_fail_range_range();
     NO_fprintf(stderr, "xspan_check_range done\n");

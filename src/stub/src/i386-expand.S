@@ -51,7 +51,7 @@ NBPW= 4
 #define GETBITp \
         addl bits,bits; jnz 0f; \
         movl (%esi),bits; sub $-4,%esi; \
-        adcl bits,bits; movb (%esi),%dl; \
+        adcl bits,bits; movzbl (%esi),%edx; \
 0:
 /* Same, but without prefetch (not useful for length of match.) */
 #define jnextb0n jnextb0y
@@ -77,6 +77,9 @@ sz_binfo= 3*4
 
 f_unfilter:  // (*f_unf)(xo->buf, out_len, h.b_cto8, h.b_ftid);
 #include "arch/i386/bxx.S"
+.macro  endbr32
+        .byte 0xf3,0x0f,0x1e,0xfb
+.endm
 
 // int f_expand(nrv_byte const *src, nrv_byte *dst, size_t *dstlen)  // C-callable
 // Includes unfilter and cache flush.
@@ -112,34 +115,38 @@ f_expand: .globl f_expand   // start of code for actual de-compressor
     push /*sz_unc*/(src)
     push fx_dst
     call f_unfilter; add $4*NBPW,%esp
-
-no_unf:  // i386 cache is coherent I+D, so no __clear_cache
+no_unf:
     pop %eax  // MATCH_30
     pop %ebx; pop %esi; pop %edi; pop %ebp  // MATCH_29
+    ret
+
+__clear_cache: .globl __clear_cache
+    int3  // __clear_cache
     ret
 
 // common subroutines for NRV2B,NRV2D,NRV2E
 refill:
         movl (%esi),bits; sub $-4,%esi  // next 32 bits; set Carry
         adcl bits,bits  // LSB= 1 (CarryIn); CarryOut= next bit
-        movb (%esi),%dl  // pre-fetch: literal, or bottom 8 bits of offset
+        movzbl (%esi),%edx  // pre-fetch: literal, or bottom 8 bits of offset
         rep; ret
 getbit:
+        endbr32 // from "call *%edx"
         addl bits,bits; jz refill  // Carry= next bit
         rep; ret
 
 copy:  // In: len, %edi, dispq;  Out: 0==len, %edi, dispq;  trashes %eax, %edx
         lea (%edi,dispq),%eax; cmpl $5,len  // <=3 is forced
-        movb (%eax),%dl; jbe copy1  // <=5 for better branch predict
+        movzbl (%eax),%edx; jbe copy1  // <=5 for better branch predict
         cmpl $-4,displ;   ja  copy1  // 4-byte chunks would overlap
         subl $4,len  // adjust for termination cases
 copy4:
         movl (%eax),%edx; add $4,      %eax; subl $4,len
         movl %edx,(%edi); lea  4(%edi),%edi; jnc copy4
-        addl $4,len; movb (%eax),%dl; jz copy0
+        addl $4,len; movzbl (%eax),%edx; jz copy0
 copy1:
         inc %eax; movb %dl,(%edi); dec len
-           movb (%eax),%dl
+           movzbl (%eax),%edx
                 lea 1(%edi),%edi;  jnz copy1
 copy0:
         rep; ret
@@ -160,10 +167,13 @@ decompress:  // sections NRV2B, etc, are inserted here
     or $(~0),disp  // -1: initial displacement
     cld
     movzbl -NBPW(src),%edx  // method
-#define methb %dl
+#define meth %dl
 
   section EXP_TAIL
-eof:  // decompressors jump here when done
+    int3  // daisy chain failed: no matching decompressor
+    hlt
+
+eof:  // non-lzma decompressors jump here when done
         pop %ebp  // MATCH_54
         pop %eax  // MATCH_53 dst_orig
         sub %eax,%edi  // dst -= original dst
@@ -173,20 +183,32 @@ eof:  // decompressors jump here when done
         sub %esi,%eax  // src -= eof;  // return 0: good; else: bad
         ret  // back into f_expand, with sane %ebp
 
+        .balign 4
+upx_mmap_and_fd: .globl upx_mmap_and_fd
+    // UMF_ANDROID or UMF_LINUX must be loaded after EXP_TAIL
+
 #define M_NRV2B_LE32    2
 #define M_NRV2D_LE32    5
 #define M_NRV2E_LE32    8
 #define M_CL1B_LE32     11
 #define M_LZMA          14
 
+#define NO_METHOD_CHECK 1  /* subsumed here by daisy chain */
+
   section NRV2E
+    cmp $M_NRV2E_LE32,meth; jne not_nrv2e
 #include "arch/i386/nrv2e_d32-easy.S"
+not_nrv2e:
 
   section NRV2D
+    cmp $M_NRV2D_LE32,meth; jne not_nrv2d
 #include "arch/i386/nrv2d_d32-easy.S"
+not_nrv2d:
 
   section NRV2B
+    cmp $M_NRV2B_LE32,meth; jne not_nrv2b
 #include "arch/i386/nrv2b_d32-easy.S"
+not_nrv2b:
 
 #undef off
 #undef len
@@ -194,12 +216,27 @@ eof:  // decompressors jump here when done
 #undef displ
 #undef dispq
 
+section LZMA_DAISY
+    cmp $M_LZMA,meth; jne not_lzma
+    push (sz_cpr - sz_binfo)(src)  // MATCH_90  inSize
+#define O_INS  (0*NBPW)
+#define O_OUTS (4*NBPW)
+
+#undef meth
 #undef src
 #undef dst
-#undef meth
 
 // lzma code is written in intel syntax!
 ///* lzma has its own 'section's */
     .intel_syntax noprefix
-#include "arch/i386/lzma_d.S"
+#include "arch/i386/lzma-multi_d.S"
+    .att_syntax
 
+section LZMA_DEC30  // REPLACES LZMA_DEC30 from src/arch/i386/lzma_d.S
+//eof_lzma:  already has set retval and *dstlen
+        pop %edx  // MATCH_90 toss inSize
+        pop %ebp  // MATCH_54
+        add $3*NBPW,%esp  // MATCH_53, MATCH_52, MATCH_51
+        ret
+
+not_lzma:  // fall into next decompressor (EXP_TAIL)

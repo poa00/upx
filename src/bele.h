@@ -2,8 +2,8 @@
 
    This file is part of the UPX executable compressor.
 
-   Copyright (C) 1996-2024 Markus Franz Xaver Johannes Oberhumer
-   Copyright (C) 1996-2024 Laszlo Molnar
+   Copyright (C) 1996-2025 Markus Franz Xaver Johannes Oberhumer
+   Copyright (C) 1996-2025 Laszlo Molnar
    All Rights Reserved.
 
    UPX and the UCL library are free software; you can redistribute them
@@ -231,7 +231,7 @@ forceinline constexpr upx_uint64_t bswap64(upx_uint64_t v) noexcept { return std
 
 #elif (ACC_CC_MSC)
 
-ACC_COMPILE_TIME_ASSERT_HEADER(sizeof(long) == 4)
+static_assert(sizeof(long) == 4);
 
 // _byteswap_XXX is unfortunately *not* constexpr with current MSVC
 forceinline bele_constexpr unsigned bswap16(unsigned v) noexcept {
@@ -422,7 +422,7 @@ forceinline constexpr int sign_extend(unsigned v, unsigned bits) noexcept {
 
 forceinline constexpr upx_int64_t sign_extend(upx_uint64_t v, unsigned bits) noexcept {
 #if (ACC_ARCH_M68K) // no barrel shifter
-    const upx_uint64_t sign_bit = 1ull << (bits - 1);
+    const upx_uint64_t sign_bit = upx_uint64_t(1) << (bits - 1);
     return ACC_ICAST(upx_int64_t, (v & (sign_bit - 1)) - (v & sign_bit));
 #else
     return ACC_ICAST(upx_int64_t, v << (64 - bits)) >> (64 - bits);

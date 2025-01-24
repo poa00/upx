@@ -20,7 +20,7 @@ override ne = $(if $(subst x$1,,x$2)$(subst x$2,,x$1),1,)
 override tolower = $(subst A,a,$(subst B,b,$(subst C,c,$(subst D,d,$(subst E,e,$(subst F,f,$(subst G,g,$(subst H,h,$(subst I,i,$(subst J,j,$(subst K,k,$(subst L,l,$(subst M,m,$(subst N,n,$(subst O,o,$(subst P,p,$(subst Q,q,$(subst R,r,$(subst S,s,$(subst T,t,$(subst U,u,$(subst V,v,$(subst W,w,$(subst X,x,$(subst Y,y,$(subst Z,z,$1))))))))))))))))))))))))))
 override toupper = $(subst a,A,$(subst b,B,$(subst c,C,$(subst d,D,$(subst e,E,$(subst f,F,$(subst g,G,$(subst h,H,$(subst i,I,$(subst j,J,$(subst k,K,$(subst l,L,$(subst m,M,$(subst n,N,$(subst o,O,$(subst p,P,$(subst q,Q,$(subst r,R,$(subst s,S,$(subst t,T,$(subst u,U,$(subst v,V,$(subst w,W,$(subst x,X,$(subst y,Y,$(subst z,Z,$1))))))))))))))))))))))))))
 
-# canonicalize case of CMAKE_BUILD_TYPE to "Debug" and "Release"
+# canonicalize the case of CMAKE_BUILD_TYPE to "Debug" and "Release"
 override cm_build_type = $(if $(call eq,$1,),$(error EMPTY-build-type),$(if $(call eq,$(call tolower,$1),debug),Debug,$(if $(call eq,$(call tolower,$1),release),Release,$(if $(call eq,$(call tolower,$1),none),None,$1))))
 
 #***********************************************************************
@@ -70,34 +70,37 @@ build/extra/clang-static/debug:   PHONY; $(call run_config_and_build,$@,Debug)
 build/extra/clang-static/release: PHONY; $(call run_config_and_build,$@,Release)
 build/extra/clang-static/%: export CC  = clang   -static
 build/extra/clang-static/%: export CXX = clang++ -static
+build/extra/clang-static/%: export UPX_CONFIG_DISABLE_SHARED_LIBS = ON
 
 # force building with clang/clang++ -static-pie
 build/extra/clang-static-pie/debug:   PHONY; $(call run_config_and_build,$@,Debug)
 build/extra/clang-static-pie/release: PHONY; $(call run_config_and_build,$@,Release)
 build/extra/clang-static-pie/%: export CC  = clang   -static-pie -fPIE -Wno-unused-command-line-argument
 build/extra/clang-static-pie/%: export CXX = clang++ -static-pie -fPIE -Wno-unused-command-line-argument
+build/extra/clang-static-pie/%: export UPX_CONFIG_DISABLE_SHARED_LIBS = ON
 
 # force building with clang/clang++ -static -flto
 build/extra/clang-static-lto/debug:   PHONY; $(call run_config_and_build,$@,Debug)
 build/extra/clang-static-lto/release: PHONY; $(call run_config_and_build,$@,Release)
 build/extra/clang-static-lto/%: export CC  = clang   -static -flto
 build/extra/clang-static-lto/%: export CXX = clang++ -static -flto
+build/extra/clang-static-lto/%: export UPX_CONFIG_DISABLE_SHARED_LIBS = ON
 
 # force building with clang/clang++ C++20 (and C17)
 build/extra/clang-std-cxx20/debug:   PHONY; $(call run_config_and_build,$@,Debug)
 build/extra/clang-std-cxx20/release: PHONY; $(call run_config_and_build,$@,Release)
 build/extra/clang-std-cxx20/%: export CC  = clang   -std=gnu17
 build/extra/clang-std-cxx20/%: export CXX = clang++ -std=gnu++20
-build/extra/clang-std-cxx20/%: export UPX_CONFIG_DISABLE_C_STANDARD=ON
-build/extra/clang-std-cxx20/%: export UPX_CONFIG_DISABLE_CXX_STANDARD=ON
+build/extra/clang-std-cxx20/%: export UPX_CONFIG_DISABLE_C_STANDARD = ON
+build/extra/clang-std-cxx20/%: export UPX_CONFIG_DISABLE_CXX_STANDARD = ON
 
 # force building with clang/clang++ C++23 (and C23)
 build/extra/clang-std-cxx23/debug:   PHONY; $(call run_config_and_build,$@,Debug)
 build/extra/clang-std-cxx23/release: PHONY; $(call run_config_and_build,$@,Release)
-build/extra/clang-std-cxx23/%: export CC  = clang   -std=gnu2x
+build/extra/clang-std-cxx23/%: export CC  = clang   -std=gnu2x -Wno-constant-logical-operand
 build/extra/clang-std-cxx23/%: export CXX = clang++ -std=gnu++2b
-build/extra/clang-std-cxx23/%: export UPX_CONFIG_DISABLE_C_STANDARD=ON
-build/extra/clang-std-cxx23/%: export UPX_CONFIG_DISABLE_CXX_STANDARD=ON
+build/extra/clang-std-cxx23/%: export UPX_CONFIG_DISABLE_C_STANDARD = ON
+build/extra/clang-std-cxx23/%: export UPX_CONFIG_DISABLE_CXX_STANDARD = ON
 
 # force building with gcc/g++
 build/extra/gcc/debug:   PHONY; $(call run_config_and_build,$@,Debug)
@@ -134,42 +137,45 @@ build/extra/gcc-static/debug:   PHONY; $(call run_config_and_build,$@,Debug)
 build/extra/gcc-static/release: PHONY; $(call run_config_and_build,$@,Release)
 build/extra/gcc-static/%: export CC  = gcc -static
 build/extra/gcc-static/%: export CXX = g++ -static
+build/extra/gcc-static/%: export UPX_CONFIG_DISABLE_SHARED_LIBS = ON
 
 # force building with gcc/g++ -static-pie
 build/extra/gcc-static-pie/debug:   PHONY; $(call run_config_and_build,$@,Debug)
 build/extra/gcc-static-pie/release: PHONY; $(call run_config_and_build,$@,Release)
 build/extra/gcc-static-pie/%: export CC  = gcc -static-pie -fPIE
 build/extra/gcc-static-pie/%: export CXX = g++ -static-pie -fPIE
+build/extra/gcc-static-pie/%: export UPX_CONFIG_DISABLE_SHARED_LIBS = ON
 
 # force building with gcc/g++ -static -flto
 build/extra/gcc-static-lto/debug:   PHONY; $(call run_config_and_build,$@,Debug)
 build/extra/gcc-static-lto/release: PHONY; $(call run_config_and_build,$@,Release)
 build/extra/gcc-static-lto/%: export CC  = gcc -static -flto
 build/extra/gcc-static-lto/%: export CXX = g++ -static -flto
+build/extra/gcc-static-lto/%: export UPX_CONFIG_DISABLE_SHARED_LIBS = ON
 
 # force building with gcc/g++ C++20 (and C17)
 build/extra/gcc-std-cxx20/debug:   PHONY; $(call run_config_and_build,$@,Debug)
 build/extra/gcc-std-cxx20/release: PHONY; $(call run_config_and_build,$@,Release)
 build/extra/gcc-std-cxx20/%: export CC  = gcc -std=gnu17
 build/extra/gcc-std-cxx20/%: export CXX = g++ -std=gnu++20
-build/extra/gcc-std-cxx20/%: export UPX_CONFIG_DISABLE_C_STANDARD=ON
-build/extra/gcc-std-cxx20/%: export UPX_CONFIG_DISABLE_CXX_STANDARD=ON
+build/extra/gcc-std-cxx20/%: export UPX_CONFIG_DISABLE_C_STANDARD = ON
+build/extra/gcc-std-cxx20/%: export UPX_CONFIG_DISABLE_CXX_STANDARD = ON
 
 # force building with gcc/g++ C++23 (and C23)
 build/extra/gcc-std-cxx23/debug:   PHONY; $(call run_config_and_build,$@,Debug)
 build/extra/gcc-std-cxx23/release: PHONY; $(call run_config_and_build,$@,Release)
 build/extra/gcc-std-cxx23/%: export CC  = gcc -std=gnu2x
 build/extra/gcc-std-cxx23/%: export CXX = g++ -std=gnu++2b
-build/extra/gcc-std-cxx23/%: export UPX_CONFIG_DISABLE_C_STANDARD=ON
-build/extra/gcc-std-cxx23/%: export UPX_CONFIG_DISABLE_CXX_STANDARD=ON
+build/extra/gcc-std-cxx23/%: export UPX_CONFIG_DISABLE_C_STANDARD = ON
+build/extra/gcc-std-cxx23/%: export UPX_CONFIG_DISABLE_CXX_STANDARD = ON
 
 # force building with gcc/g++ C++26 (EXPERIMENTAL; need gcc-14)
 build/extra/gcc-std-cxx26/debug:   PHONY; $(call run_config_and_build,$@,Debug)
 build/extra/gcc-std-cxx26/release: PHONY; $(call run_config_and_build,$@,Release)
 build/extra/gcc-std-cxx26/%: export CC  = gcc -std=gnu23
 build/extra/gcc-std-cxx26/%: export CXX = g++ -std=gnu++26
-build/extra/gcc-std-cxx26/%: export UPX_CONFIG_DISABLE_C_STANDARD=ON
-build/extra/gcc-std-cxx26/%: export UPX_CONFIG_DISABLE_CXX_STANDARD=ON
+build/extra/gcc-std-cxx26/%: export UPX_CONFIG_DISABLE_C_STANDARD = ON
+build/extra/gcc-std-cxx26/%: export UPX_CONFIG_DISABLE_CXX_STANDARD = ON
 
 # cross compiler: Linux glibc aarch64-linux-gnu (arm64)
 build/extra/cross-linux-gnu-aarch64/debug:   PHONY; $(call run_config_and_build,$@,Debug)
@@ -295,6 +301,10 @@ endif
 # info: by default CMake only honors the CC and CXX environment variables; make
 # it easy to set other variables like CMAKE_AR or CMAKE_RANLIB
 #***********************************************************************
+
+UPX_CMAKE_CONFIG_FLAGS += $(UPX_CMAKE_CONFIG_FLAGS_GENERATOR)
+UPX_CMAKE_CONFIG_FLAGS += $(UPX_CMAKE_CONFIG_FLAGS_TOOLSET)
+UPX_CMAKE_CONFIG_FLAGS += $(UPX_CMAKE_CONFIG_FLAGS_PLATFORM)
 
 $(call check_undefined,__add_cmake_config)
 # promote an environment or Make variable to a CMake cache entry:

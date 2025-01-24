@@ -3,9 +3,9 @@
 ;
 ;  This file is part of the UPX executable compressor.
 ;
-;  Copyright (C) 1996-2024 Markus Franz Xaver Johannes Oberhumer
-;  Copyright (C) 1996-2024 Laszlo Molnar
-;  Copyright (C) 2004-2024 John Reiser
+;  Copyright (C) 1996-2025 Markus Franz Xaver Johannes Oberhumer
+;  Copyright (C) 1996-2025 Laszlo Molnar
+;  Copyright (C) 2004-2025 John Reiser
 ;  All Rights Reserved.
 ;
 ;  UPX and the UCL library are free software; you can redistribute them
@@ -34,7 +34,7 @@
 #define BIG_ENDIAN 0
 #endif  //}
 
-#include "arch/powerpc/64le/macros.S"
+#include "arch/powerpc/64/macros.S"
 #include "arch/powerpc/64le/ppc_regs.h"
 
 // offsets in struct b_info

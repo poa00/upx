@@ -3,7 +3,7 @@
 ;
 ;  This file is part of the UPX executable compressor.
 ;
-;  Copyright (C) 2006-2024 Markus Franz Xaver Johannes Oberhumer
+;  Copyright (C) 2006-2025 Markus Franz Xaver Johannes Oberhumer
 ;  All Rights Reserved.
 ;
 ;  UPX and the UCL library are free software; you can redistribute them
@@ -28,7 +28,9 @@
 */
 
 #include "ppc_regs.h"
-retaddr = 2*4  // (sp,cr,pc, xx,yy,zz) save area per calling convention
+NBPW= 4
+SX_FRAME= 6*NBPW  // (sp,cr,pc, xx,yy,zz) save area per calling convention
+retaddr = 2*NBPW
 
 #define section .section
 
@@ -43,10 +45,12 @@ retaddr = 2*4  // (sp,cr,pc, xx,yy,zz) save area per calling convention
 
 ////  teq r0,r0  // debugging
 
+#ifndef NO_METHOD_CHECK  //{
 #define M_LZMA          14
         cmpli cr0,meth,M_LZMA
         bne   cr0,not_lzma
-        stwu sp,-6*4(sp)  // defend against callers who omit the linkage area
+#endif  //}
+        stwu sp,-SZ_FRAME(sp)  // defend against callers who omit the linkage area
         mflr r0  // return address
 
 //LzmaDecode(  // from lzmaSDK/C/7zip/Compress/LZMA_C/LzmaDecode.h
@@ -72,7 +76,7 @@ retaddr = 2*4  // (sp,cr,pc, xx,yy,zz) save area per calling convention
 
         li   a0,-2*LZMA_LIT_SIZE
         slw  a0,a0,t1  // -2*LZMA_LIT_SIZE << (lit_context_bits + lit_pos_bits)
-        addi a0,a0,-4*4 -(szSizeT +4) - 2*LZMA_BASE_SIZE
+        addi a0,a0,-4*NBPW -(szSizeT +4) - 2*LZMA_BASE_SIZE
 // alloca{sp,ra,orig_dst,&outSizeProcessed, inSizeProcessed,*_bits, CLzmaDecoderState}
         mr a3,sp
         add sp,sp,a0
@@ -88,10 +92,10 @@ retaddr = 2*4  // (sp,cr,pc, xx,yy,zz) save area per calling convention
         stw a3,0(sp)  // frame chain
 
         lbz r0,-1(a1)  // second byte, replaces LzmaDecodeProperties()
-        stw a4,2*4(sp)  // outp
-        la a3,4*4        (sp)  // &inSizeProcessed
-        stw a6,3*4(sp)  // &outSizeProcessed
-        la a0,4*4+szSizeT(sp)  // &CLzmaDecoderState
+        stw a4,2*NBPW(sp)  // outp
+        la a3,4*NBPW        (sp)  // &inSizeProcessed
+        stw a6,3*NBPW(sp)  // &outSizeProcessed
+        la a0,4*NBPW+szSizeT(sp)  // &CLzmaDecoderState
         rlwinm t1,r0,32-4,4,31  // t1= (r0>>4)==lit_pos_bits
         rlwinm r0,r0,0,32-4,31  // r0= (0xf& r0)==lit_context_bits
         stb t2,2(a0)  // pos_bits
@@ -105,17 +109,20 @@ retaddr = 2*4  // (sp,cr,pc, xx,yy,zz) save area per calling convention
 #include "lzma_d_cf.S"
 
   section LZMA_DEC30  // Out: a0= retval; a2= &hi stored; a4= &lo stored; lr= retaddr
-          lwz a2,3*4(sp)  // &outSizeProcessed
-        lwz a4,2*4(sp)  // &lowest byte stored
-          lwz a2,0(a2)  // outSizeProcessed
+          lwz a2,3*NBPW(sp)  // &outSizeProcessed
+        lwz a4,2*NBPW(sp)  // &lowest byte stored
+          lwz a2,0*NBPW(a2)  // outSizeProcessed
         lwz sp,0(sp)  // old sp
           add a2,a2,a4  // &next byte to store
         lwz r0,retaddr(sp)
           addi a2,a2,-1  // &highest byte stored
-        lwz sp,0(sp)  // un-defend
+        lwz sp,0(sp)  // un-defend (remove linkge area)
         mtlr r0
+           // fall through into EXP_TAIL etc
 
+#ifndef NO_METHOD_CHECK  //{
 not_lzma:
+#endif  //}
 
 // vi:ts=8:et
 

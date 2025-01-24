@@ -2,7 +2,7 @@
 @
 @  This file is part of the UPX executable compressor.
 @
-@  Copyright (C) 2000-2024 John F. Reiser
+@  Copyright (C) 2000-2025 John F. Reiser
 @  All Rights Reserved.
 @
 @  UPX and the UCL library are free software; you can redistribute them
@@ -30,7 +30,6 @@
 #define ARM_OLDABI 1
 #include "arch/arm/v4a/macros.S"
 #include "MAX_ELF_HDR.S"
-#define bkpt .long 0xe7f001f0  /* reserved instr "udf #0x10"; Linux GNU eabi breakpoint */
 NBPW= 4
 
 sz_Elf32_Ehdr = 13*4
@@ -76,20 +75,78 @@ mflg_data: .int MAP_PRIVATE|MAP_ANONYMOUS  @ overwritten for QNX vs Linux
 // %esp:
 //   MATCH_13  ptr unfolded_code; for escape hatch
 //   MATCH_12  len unfolded code; for escape hatch
+//             PAGE_MASK
 //   MATCH_99  9 saved registers {r0= argc, r1= argv, r2= envp, r3-r7, lr)
 
 F_ADRU=  0 * NBPW
-F_LENU=  2 * NBPW
+F_LENU=  1 * NBPW
+F_PMASK= 2 * NBPW  // extra copy?
 
   .globl upx_so_main  // in arm.v?a-linux.elf-so_main.c
 
   section SO_HEAD
-fold: .globl fold
-    sub sp,sp,#MAX_ELF_HDR_32; mov r2,sp  // &elf_tmp
+ZERO:
+PAGE_MASK: .word 0xfffff000  // default
+qflg_data: .word 0  // QNX vs Linux: MAP_PRIVATE | MAP_ANONYMOUS
+upxfn_path:.word 0  // displacement from "zero"
+
+fold_begin: .globl fold
+        b L05
+
+get_page_mask: .globl get_page_mask
+        ldr r0,PAGE_MASK
+        ret
+
+get_upxfn_path: .globl get_upxfn_path  // char * (*)(void)
+    adr r1,ZERO
+    ldr r0,[r1,#1*NBPW]  // offset(upxfn_path)
+    cmp r0,#0; beq 1f  // nullptr
+    add r0,r0,r1  // &path
+1:
+    ret
+
+arg6 .req r5
+arg5 .req r4
+arg4 .req r3
+arg3 .req r2
+arg2 .req r1
+arg1 .req r0
+
+// Sometimes Linux enforces page-aligned address
+Pmap: .globl Pmap
+        ldr r12,PAGE_MASK
+        bic r12,arg1,r12
+        sub arg1,arg1,r12
+        add arg2,arg2,r12
+        b mmap
+
+Punmap: .globl Punmap
+        ldr r12,PAGE_MASK
+        bic r12,arg1,r12
+        sub arg1,arg1,r12
+        add arg2,arg2,r12
+        b munmap
+
+Pprotect: .globl Pprotect
+        ldr r12,PAGE_MASK
+        bic r12,arg1,r12
+        sub arg1,arg1,r12
+        add arg2,arg2,r12
+        b mprotect
+
+Psync: .globl Psync
+        ldr r12,PAGE_MASK
+        bic r12,arg1,r12
+        sub arg1,arg1,r12
+        add arg2,arg2,r12
+        b msync
+
+L05:
+    sub sp,sp,#MAX_ELF_HDR_32; mov arg3,sp  // &elf_tmp
     call upx_so_main  // (&so_info, &argc); returns &escape_hatch
     add sp,sp,#MAX_ELF_HDR_32
     mov lr,r0  // save &escape_hatch
-    ldmia sp!,{r0,r1}  // F_ADRU, F_LENU  (unfolded region)
+    ldmia sp!,{r0,r1,r2}  // F_ADRU, F_LENU, PMASK  (unfolded region)
     mov r7,#0xff & __NR_munmap  // FIXME depends on HW and ABI of OS
     mov pc,lr  // goto &escape_hatch
 
@@ -121,76 +178,99 @@ L10:
 #endif  /*}*/
         ldr pc,[r2,#4 -2*4]  @ Elf32_auxv_t[AT_NULL@.a_type].a_val
 
-__NR_exit  =  1 + __NR_SYSCALL_BASE
-__NR_read  =  3 + __NR_SYSCALL_BASE
-__NR_write =  4 + __NR_SYSCALL_BASE
-__NR_open  =  5 + __NR_SYSCALL_BASE
-__NR_close =  6 + __NR_SYSCALL_BASE
-__NR_unlink= 10 + __NR_SYSCALL_BASE
-__NR_lseek=  19 + __NR_SYSCALL_BASE
-__NR_getpid= 20 + __NR_SYSCALL_BASE
-__NR_brk   = 45 + __NR_SYSCALL_BASE
-__NR_readlink=  85 + __NR_SYSCALL_BASE  // 0x55
-__NR_ftruncate= 93 + __NR_SYSCALL_BASE  // 0x5d
+memcpy: .globl memcpy  // void *memcpy(void *dst, void const *src, size_t len)
+        cmp r2,#0; beq 9f
+        mov r12,r0  // original dst
+0:
+        ldrb r3,[r1],#1; subs  r2,r2,#1
+        strb r3,[r0],#1; bne 0b
+9:
+        mov r0,r12  // return original dst
+        ret
 
+memset: .globl memset  // (dst, val, n)
+        cmp r2,#0; beq 9f
+        mov r12,r0  // original dst
+0:
+        strb r1,[r0],#1; subs r2,r2,#1
+        bne 0b
+9:
+        mov r0,r12  // return original dst
+        ret
 
-__NR_memfd_create= 0x181 + __NR_SYSCALL_BASE  // 385
-__NR_mmap2    = 192 + __NR_SYSCALL_BASE  // 0xc0
-__NR_mprotect = 125 + __NR_SYSCALL_BASE  // 0x7d
-__NR_munmap   =  91 + __NR_SYSCALL_BASE  // 0x5b
+mempcpy: .globl mempcpy  // (dst, src, n)
+        cmp r2,#0; beq 9f
+0:
+        ldrb r3,[r1],#1; subs r2,r2,#1
+        strb r3,[r0],#1; bne 0b
+9:
+        ret  // updated dst
 
-__ARM_NR_BASE       = 0x0f0000 + __NR_SYSCALL_BASE
-__ARM_NR_cacheflush = 2 + __ARM_NR_BASE
+__NR_SYSCALL_BASE = 0
+
+__NR_close=     6 + __NR_SYSCALL_BASE
+__NR_exit=      1 + __NR_SYSCALL_BASE
+__NR_fdatasync=148 + __NR_SYSCALL_BASE
+__NR_fsync=   118 + __NR_SYSCALL_BASE
+__NR_ftruncate=93 + __NR_SYSCALL_BASE
+__NR_getpid=   20 + __NR_SYSCALL_BASE
+__NR_lseek=    19 + __NR_SYSCALL_BASE
+__NR_memfd_create= 385 + __NR_SYSCALL_BASE
+__NR_mkdir=    39 + __NR_SYSCALL_BASE
+__NR_mmap2=   192 + __NR_SYSCALL_BASE
+__NR_munmap=   91 + __NR_SYSCALL_BASE  // 0x5b
+__NR_mprotect=125 + __NR_SYSCALL_BASE
+__NR_msync=   144 + __NR_SYSCALL_BASE  // 0x90
+__NR_open=      5 + __NR_SYSCALL_BASE
+__NR_read=      3 + __NR_SYSCALL_BASE
+__NR_stat=    106 + __NR_SYSCALL_BASE
+__NR_uname=   122 + __NR_SYSCALL_BASE
+__NR_unlink=   10 + __NR_SYSCALL_BASE
+__NR_write=     4 + __NR_SYSCALL_BASE
+
+.globl Pwrite; Pwrite: b write
+
+// These Linux system calls are called from upxfd_android.c
+// in order to work around problems with memfd_create and ftruncate on Android.
+// Because called from C, then r7 is live; cannot use do_sys7t.
+.globl memfd_create; memfd_create: do_sys2 __NR_memfd_create; ret
+.globl close;     close:     do_sys __NR_close; ret
+.globl exit;      exit:      do_sys __NR_exit; ret
+.globl fdatasync; fdatasync: do_sys __NR_fdatasync; ret
+.globl fsync;     fsync:     do_sys __NR_fsync; ret
+.globl ftruncate; ftruncate: do_sys __NR_ftruncate; ret
+.globl getpid;    getpid:    do_sys __NR_getpid; ret
+.globl lseek;     lseek:     do_sys __NR_lseek; ret
+.globl mkdir;     mkdir:     do_sys __NR_mkdir; ret
+.globl mprotect;  mprotect:  do_sys __NR_mprotect; ret
+.globl msync;     msync:     do_sys __NR_msync; ret
+.globl munmap;    munmap:    do_sys __NR_munmap; ret
+.globl open;      open:      do_sys __NR_open; ret
+.globl read;      read:      do_sys __NR_read; ret
+.globl stat;      stat:      do_sys __NR_stat; ret
+.globl uname;     uname:     do_sys __NR_uname; ret
+.globl unlink;    unlink:    do_sys __NR_unlink; ret
+.globl write;     write:     do_sys __NR_write; ret
 
         .globl my_bkpt
 my_bkpt:
         bkpt  // my_bkpt
         ret
 
-        .globl exit
-exit:
-        do_sys __NR_exit
-
-        .globl read
-read:
-        do_sys __NR_read; ret
-
-Pwrite: .globl Pwrite
-write: .globl write
-        do_sys __NR_write; ret
-
-lseek: .globl lseek
-        do_sys __NR_lseek; ret
-
-        .globl open
-open:
-        do_sys __NR_open; ret
-
-        .globl close
-close:
-        do_sys __NR_close; ret
-
-        .globl unlink
-unlink:
-        do_sys __NR_unlink; ret
-
-        .globl getpid
-getpid:
-        do_sys __NR_getpid; ret
-
-        .globl brk
-brk:
-        do_sys __NR_brk; ret
-
-        .globl readlink
-readlink:
-        do_sys __NR_readlink; ret
-
-ftruncate: .globl ftruncate
-        do_sys __NR_ftruncate; ret
-
-memfd_create: .globl memfd_create
-        do_sys7t2 __NR_memfd_create; ret
+// __NR_oldmmap gets ENOSYS!  Must use __NR_mmap2 with all args in registers
+// Called from C (5th and 6th arg on stack), so must preserve r4 and r5
+mmap: .globl mmap
+        stmdb sp!,{r4,r5,lr}  // called from C: only 4 args in registers
+        ldr arg6,[sp,#4*NBPW]
+        ldr arg5,[sp,#3*NBPW]
+        mov arg6,arg6,lsr #12  @ FIXME?  convert to page offset in file
+mmap_do: // sp: saved r4,r5,lr
+        mov r12,#~0; mov r12,r12,lsl #12  // PAGE_MASK
+        bic r12,arg1,r12  // lo frag
+        sub arg1,arg1,r12  // page align lo end
+        add arg2,arg2,r12
+        do_sys __NR_mmap2
+        ldmia sp!,{r4,r5,pc}
 
 O_RDWR= 2
 O_DIRECTORY= 040000
@@ -202,53 +282,15 @@ table3:
         .asciz "/dev/shm"; .balign 4
 
 upxfd_create: .globl upxfd_create
+    bkpt  // upxfd_create
         adr r0,table3
         ldmia r0!,{r1,r2}
         do_sys7t2 __NR_open
         ret
 
-// Sometimes Linux enforces page-aligned address
-Pprotect: .globl Pprotect
-        ldr r12,m_off4k
-        and r12,r12,r0
-        sub r0,r0,r12
-        add r1,r1,r12
-mprotect: .globl mprotect
-        do_sys __NR_mprotect; ret
-
-Pmap: .globl Pmap
-        ldr r12,m_off4k
-        and r12,r12,r0
-        sub r0,r0,r12
-        add r1,r1,r12
-mmap: .globl mmap
-        stmdb sp!,{r4,r5,lr}
-        ldr r5,[sp,#4*4]
-        ldr r4,[sp,#3*4]
-        mov r5,r5,lsr #12  @ convert to page number
-mmap_do:
-        ldr r12,m_off4k
-        and r12,r12,r0  // lo frag
-        sub r0,r0,r12  // page align lo end
-        add r1,r1,r12
-        do_sys __NR_mmap2
-        ldmia sp!,{r4,r5,pc}
-
-Punmap: .globl Punmap
-        ldr r12,m_off4k
-        and r12,r12,r0
-        sub r0,r0,r12
-        add r1,r1,r12
-munmap: .globl munmap
-        do_sys __NR_munmap; ret
-
-m_off4k:
-        .word -1+ (1<<PAGE_SHIFT)  // offset mask for 4KiB
-
         .globl __clear_cache
 __clear_cache:
-        mov r2,#0
-        do_sys2 __ARM_NR_cacheflush; ret
+        bkpt  // clear_cache  should not be needed: write() + mmap()
 
 get_sys_munmap: .globl get_sys_munmap  // r0= system call instruction
 #if defined(ARMEL_DARWIN)  /*{*/
@@ -270,121 +312,50 @@ mmap_privanon: .globl mmap_privanon
         mvn r4,#0  @ fd= -1
         b mmap_do
 
-memcpy: .globl memcpy  // void *memcpy(void *dst, void const *src, size_t len);
-dst .req r0
-src .req r1
-len .req r2
-lim .req r12  // limit value of src for current code loop
-        tst len,len; moveq pc,lr  // 0==len is a no_op
-        mov lim,len
-        //b mc_1prep  // optimizations not tested!
 
-// Optimize for dst that is 4-aligned,
-// such as fetching unaligned struct to local aligned copy.
-        tst dst,#-1+ NBPW; beq mc_dst4
-mc_1prep:
-        add lim,len,src
-mc_1:
-        ldrb r3,[src],#1; cmp src,lim
-        strb r3,[dst],#1; bne mc_1
-        ret
-
-mc_dst4:  // dst is 4-aligned.  Store words of 4 bytes.
-        tst src,#-1+ NBPW; beq mc_44prep
-mc_d4prep:
-        bics r3,len,#-1+ NBPW  // length of full words
-        add lim,src,r3
-        beq mc_1prep  // no full words
-        str len,[sp,#-NBPW]!  // save register (mc_s1d4 needs 2 registers)
-mc_s1d4:  // src is not 4-aligned; dst is 4-aligned
-        ldrb r2,[src],#1
-        ldrb r3,[src],#1; orr r2,r2,r3,lsl #1*8
-        ldrb r3,[src],#1; orr r2,r2,r3,lsl #2*8
-        ldrb r3,[src],#1; orr r2,r2,r3,lsl #3*8
-        str r2,[dst],#4
-        cmp src,lim; bne mc_s1d4
-        ldr len,[sp],#NBPW  // restore register
-        ands len,len,#-1+ NBPW; bne mc_1prep  // 0 < len <= 3
-        ret
-
-mc_44prep: // both src and dst are 4-aligned. Store blocks of 16 bytes.
-        bics r3,len,#-1+ 4*NBPW  // length of 16-byte blocks
-        add lim,src,r3
-        bne mc_s4d4go  // 16-byte blocks
-mc_s4d1prep:
-        bics r3,len,#-1+ NBPW  // length of full words
-        add lim,src,r3
-        beq mc_1prep  // no full words
-mc_s4d1:
-        ldr r3,[src],#NBPW
-        str r3,[dst],#NBPW
-        cmp src,lim; bne mc_s4d1
-        ands len,len,#-1+ NBPW; bne mc_1prep  // 0 < len <= 3
-        ret
-
-mc_s4d4go:
-        stmdb sp!,{r4,r5,r6,r7}  // save original contents of working storage
-mc_s4d4:
-        ldmia src!,{r4,r5,r6,r7}
-        stmia dst!,{r4,r5,r6,r7}
-        cmp src,lim; bne mc_s4d4
-        ldmia  sp!,{r4,r5,r6,r7}  // restore original contents of working storage
-        ands len,len,#-1+ 4*NBPW; bne mc_s4d1prep  // 0 < len <= 15
-        ret
-    .unreq dst
-    .unreq src
-    .unreq len
-    .unreq lim
-
-
-tmp  .req r3
-
-size .req r4
-ptr  .req r5
-ulen .req r6
-pflg .req r7
-
-underlay: .globl underlay // (unsigned size, char *ptr, unsigned ulen, unsigned p_flags)  // ulen <= PAGE_SIZE
+underlay: .globl underlay  // (unsigned size, char *ptr, unsigned page_mask);
     stmdb sp!,{r0,r1,r2,r3,r4,r5,r6,r7, lr}
     ldmia sp!, {r4,r5,r6,r7}  // r4= r0; r5= r1; r6= r2; r7= r3;
-    mov r0,sp
-
-    sub tmp,sp,ulen
+size .req r4
+ptr  .req r5
+pmsk .req r6
+frag .req r7
+tmp  .req r3
+    mov r0,sp  // old sp
+    bics frag,ptr,pmsk; beq 3f  // page fragment
+    sub tmp,sp,frag
     and sp,tmp,#-2*NBPW
-    str r0,[sp,#-NBPW]!  // save sp for pop at return
+    str r0,[sp,#-NBPW]!  // save old sp for pop at return
 
-    add r0,sp,#NBPW
-    // mov r1,ptr  // not yet overwritten
-    // mov r2,ulen  // not yet overwritten
+    mov r2,frag
+    and r1,ptr,pmsk  // beginning of page
+    add r0,sp,#NBPW  // &saved_area
     bl memcpy
+3:
 
-    mov r0,ptr
-    mov r1,size
+    and r0,ptr,pmsk  // beginning of page
+    add r1,size,frag  // include fragment
     mov r2,#PROT_WRITE|PROT_READ
-    tst pflg,#PF_X  // if eventually PROT_EXEC,
-    orrne r2,r2,#PROT_EXEC  // ... then Linux ARM wants it now, too
     mov r3,#MAP_FIXED
     bl mmap_privanon  // r0= ptr because MAP_FIXED
+    mov ptr,r0
 
-    add r1,sp,#NBPW
-    mov r2,ulen
+    cmp frag,#0; beq 3f
+    mov r0,ptr  // mapped address
+    add r1,sp,#NBPW  // &saved_area
+    mov r2,frag
     bl memcpy
-
-    ldr sp,[sp]
+    ldr sp,[sp]  // original sp
+3:
+    mov r0,ptr  // start of mapped region
     ldmia sp!,{r4,r5,r6,r7, pc}
 
     .unreq tmp
 
     .unreq size
     .unreq ptr
-    .unreq ulen
-    .unreq pflg
-
-memset: .globl memset  // void *memset(void *s, int c, size_t n);
-        tst r2,r2; moveq pc,lr
-        strb r1,[r0],#1; subs r2,r2,#1
-        bgt memset
-        ret
+    .unreq pmsk
+    .unreq frag
 
 my_alloca: .globl my_alloca
         sub r0,sp,r0
